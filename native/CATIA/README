@@ -1,0 +1,46 @@
+
+Every new version or os, lots of lovely new problems. Guillaume
+incorporated lots of dependencies on boost. While this provides
+great syntax, the mavericks upgrade screwed things up. 
+
+Macports installed boost seems to have problems. To fix.
+
+Use clang++.
+Use homebrew boost
+Make sure the numeric-bindings are in include from the git trunk
+Make sure numeric/bindings/ is in the include.
+
+
+15th Sept 2020
+The boost bindings officially failed with macOS catalina.
+they probably failed with mojave also but I didn't notice.
+To fix: we have removed them. I have written an expm_real function
+that uses LAPACKE bindings directly to LAPACK, avoiding the 
+need to call LAPACK from boost.
+17th Sept 2020
+Re-written again to use lapack directly, manually declaring the 
+work spaces. This gets a factor of 9 in speed versus expm_pad.
+All instances of expm_pad have been removed.
+
+
+#using expm_pad: seriously slow.
+#using deltaR2 calc on Reid's data: 2.25 using boos::ublas::expm
+#using a lapack eigenvalue expm_eig, 46s
+#using the expokit dgpadm, 39s.
+#one problem: I need to declare the memory for Gfree in the matrix
+#exponential functions. which seems bad. Doing test calculations,
+#the ratio should be roughly 60:5:1 for speed (pade boost,eig,pade expokit)
+
+#last improvement: replaced prod from ublas in boost with dgemm 
+#coming directly from blas. the improvement is absolutely huge.
+#using expokit dgpadm we are down to just 7 seconds. 
+
+#we have sped catia up by a factor of 124. That is immense. 
+
+
+26th March 2024
+#fortran compilation of expokit - some subroutines use doubles and pass 
+#to complex. This behaviour seems to have been previously supported, but
+#not now. Changing 'Z' to 'D' and a few declarations seems to have fixed this.
+#the speed test done before I should have saved for comparisons to current 
+#state.

@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+
+def _bootstrap_source_tree() -> Path:
+    """Use the suite venv and make applications + native bin discoverable."""
+    launcher_dir = Path(__file__).resolve().parent
+    applications_dir = launcher_dir.parent
+    root = applications_dir.parent
+
+    venv_python = root / ".venv" / "bin" / "python"
+    if venv_python.is_file() and Path(sys.executable).resolve() != venv_python.resolve():
+        os.execv(
+            str(venv_python),
+            [str(venv_python), str(Path(__file__).resolve()), *sys.argv[1:]],
+        )
+
+    applications_text = str(applications_dir)
+    if applications_text not in sys.path:
+        sys.path.insert(0, applications_text)
+
+    bin_dir = root / "bin"
+    if bin_dir.is_dir():
+        os.environ["PATH"] = str(bin_dir) + os.pathsep + os.environ.get("PATH", "")
+
+    return root
+
+
+def main() -> int:
+    _bootstrap_source_tree()
+
+    import matplotlib
+    matplotlib.use("WXAgg")
+    import wx
+
+    from spinHubMain.datasearch_main import MyApp
+
+    app = wx.App()
+    frame = MyApp()
+    app.MainLoop()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

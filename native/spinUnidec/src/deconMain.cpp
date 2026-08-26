@@ -1,0 +1,3215 @@
+/**************************************************/
+/* decon         */
+/* A.Baldwin     */
+/* 3rd March 2014*/
+/**************************************************/
+#ifndef DECONMAIN_CPP
+#define DECONMAIN_CPP
+
+#include "omp.h"
+#include <algorithm>
+#include <cmath>
+#include <cerrno>
+#include <sys/stat.h>
+
+#include "deconMain.hpp"   //for 4D sets
+using namespace std;
+
+
+
+
+void decon::splash(int argc,char *argv[],bool parallel)
+{
+  cout << "--------------------------" << endl;
+  cout << "-  welcome to unidecNMR.  " << endl;
+  cout << "- peak fitting in 1-4D.   " << endl;
+  cout << "--------------------------" << endl;
+  cout << "- version 2.0             " << endl;
+  if(parallel)
+    cout << "- parallelisation enabled " << endl;
+  cout << "--------------------------" << endl;
+  cout << "  A.Baldwin               " << endl;
+  cout << " (c) University of Oxford " << endl;
+  cout << " 2026                     " << endl;
+  cout << "--------------------------" << endl;
+  if(argc==1)
+    {
+      cout << "Error: " << endl;
+      cout << "Need to either supply an input file "<< endl;
+      cout << "or command line arguments " << endl;
+      cout << endl;
+      cout << "USAGE: " << argv[0] << " <input-file>\n"
+	   << "   or: " << argv[0] << " <peakfile> <dim> <STD>" << endl;
+      exit(100);
+    }
+  cout << "argc: " << argc << endl;
+  if(argc==2)
+    {
+      cout << "Input file: " << argv[1] << endl;
+    }
+
+  if (argc == 2) {
+
+    parse(argv[1]); //parse input file
+    parsed = 1;
+  } else if (argc == 5) {
+    parsed = 0;
+    peakfile = argv[2];
+    dim = atoi(argv[3]); //either 1 2 or 3
+    STD = atoi(argv[4]);
+  }
+
+  
+}
+
+
+
+// Read a full-dimensional restrained peak list.  Decon full-list rows are
+// Name, f1, f2, f3, ..., Intensity, where f1 is the fastest NMRPipe
+// dimension.  For 3D this maps directly to slice3D k, j, i respectively.
+void decon::readPeakND()
+  {
+    cout << "reading restrained nD peak list file : " << peakfile << endl;
+    peakList.clear();
+    vector<vector<string> > inny = MakeFileVec(peakfile);
+    for(size_t i=0; i<inny.size(); ++i)
+      {
+        if(inny[i].empty() || inny[i][0] == "Assignment")
+          continue;
+        if(dim == 1 && inny[i].size() >= 2)
+          {
+            peakEntry inst;
+            inst.name=inny[i][0];
+            inst.x=atof(inny[i][1].c_str());
+            peakList.push_back(inst);
+          }
+        else if(dim == 2 && inny[i].size() >= 3)
+          {
+            peakEntry inst;
+            inst.name=inny[i][0];
+            inst.x=atof(inny[i][1].c_str());
+            inst.y=atof(inny[i][2].c_str());
+            peakList.push_back(inst);
+          }
+        else if(dim == 3 && inny[i].size() >= 4)
+          {
+            peakEntry inst;
+            inst.name=inny[i][0];
+            inst.x=atof(inny[i][1].c_str()); // f1 / k / fastest
+            inst.y=atof(inny[i][2].c_str()); // f2 / j
+            inst.z=atof(inny[i][3].c_str()); // f3 / i / slowest
+            peakList.push_back(inst);
+          }
+      }
+    peaks=peakList.size();
+    cout << " Read in : " << peaks << " restrained peaks " << endl;
+  }
+
+
+//read in the file and load data into arrays
+void decon::readPeak()
+  {
+    cout << "reading peak list file : " << peakfile << endl;
+
+    vector<vector<string> > inny= MakeFileVec(peakfile);
+
+      for(int i=0;i<inny.size();++i)
+	{
+	  if(inny[i].size()>=3)
+	    {
+	      if(inny[i][0]!="Assignment")
+		{
+		  peakEntry inst;
+		  inst.name=inny[i][0];
+		  inst.x=atof(inny[i][2].c_str()); //proton
+		  inst.y=atof(inny[i][1].c_str()); //indirect
+		  peakList.push_back(inst);
+		  // if (inst.name == "56"){
+		  	// cout << inst.name << " " << inst.x << " " << inst.y << endl;
+		  // }
+		}
+	    }
+      }
+    peaks=peakList.size();
+
+    cout << " Read in : " << peaks << " peaks " << endl;
+    //for(int i=0;i<peakList.size();++i)
+    //  cout << peakList[i].name << " " << peakList[i].x << " " << peakList[i].y << endl;
+   return;
+  }
+
+  int decon::CountElements()
+  {
+    int cnt=0;
+
+    switch(dim){
+    case 1:
+
+	cnt+=sliceLib1D[0].CountElements();
+      break;
+
+    case 2:
+      if(sliceLib2D[0].BORE==false)
+	{
+	  for(int p=0;p<peaks;++p)
+	    cnt+=sliceLib2D[p].CountElements();
+	}
+      else
+	{
+	  cnt=sliceLib2D[0].peaks;
+	}
+      break;
+
+    case 3:
+      switch(mode){
+      case 1:
+	for(int p=0;p<peaks;++p)
+	  cnt+=sliceLib1D[p].CountElements();
+	break;
+      case 3:
+	cnt+=sliceLib3D[0].CountElements();
+	break;}
+      break;
+
+    case 4:
+      for(int p=0;p<peaks;++p)
+	cnt+=sliceLib2D[p].CountElements();
+      break;}//end dim switch
+
+    return cnt;
+  }
+
+
+  int decon::CountElements(const int p)
+  {
+    int cnt=0;
+
+    switch(dim){
+    case 1:
+
+	cnt+=sliceLib1D[0].CountElements();
+      break;
+
+    case 2:
+      if(sliceLib2D[0].BORE==false)
+	{
+	  //for(int p=0;p<peaks;++p)
+	    cnt+=sliceLib2D[p].CountElements();
+	}
+      else
+	{
+	  cnt=sliceLib2D[0].peaks;
+	}
+      break;
+
+    case 3:
+      switch(mode){
+      case 1:
+	//for(int p=0;p<peaks;++p)
+	  cnt+=sliceLib1D[p].CountElements();
+	break;
+      case 3:
+	cnt+=sliceLib3D[0].CountElements();
+	break;}
+      break;
+
+    case 4:
+      //for(int p=0;p<peaks;++p)
+	cnt+=sliceLib2D[p].CountElements();
+      break;}//end dim switch
+
+    return cnt;
+  }
+
+
+
+/*
+  //CORE FUNCTIONS
+  void decon::calcspec(const int p)
+  {
+    switch(dim)
+      {
+      case 1:
+	calcspec1D(); //loop peaks, calc1D
+	break;
+      case 2:
+	calcspec2D(); //loop peaks, calc 2D
+	break;
+      case 3:
+	switch(bore)
+	  {
+	  case 0:
+	    sliceLib3D[0].CalcSpec(); //calc3D (full 3D)
+	    break;
+	  case 1:
+	    switch(mode){
+	    case 1:
+	      sliceLib1D[p].CalcSpec();
+	      break;
+	    case 3:
+	      calcspec3D();
+        break;}
+	    break;
+	  }
+	break;
+      case 4:
+	switch(mode){
+	case 2:
+	  calcspec2D();
+	  break;
+	case 4:
+	  calcspec4D(); //2D-4D delta,calc,4D-2D
+	  break;}
+	break;
+      }
+  }
+*/
+
+  //CORE FUNCTIONS
+  void decon::calcspec()
+  {
+    switch(dim)
+      {
+      case 1:
+	calcspec1D(); //loop peaks, calc1D
+	break;
+      case 2:
+	calcspec2D(); //loop peaks, calc 2D
+	break;
+      case 3:
+	switch(bore)
+	  {
+	  case 0:
+	    sliceLib3D[0].CalcSpec(); //calc3D (full 3D)
+	    break;
+	  case 1:
+	    switch(mode){
+	    case 1:
+	      calcspec1D(); //calcspec from 1Ds (1D only)
+	      break;
+	    case 3:
+	      // calcspec3D(); //calcspec 1D-3D (transfer 1D-3D calc, trans back)
+	      calcspec3D();
+        break;}
+	    break;
+	  }
+	break;
+      case 4:
+
+	switch(mode){
+	case 2:
+	  calcspec2D();
+	  break;
+	case 4:
+	  calcspec4D(); //2D-4D delta,calc,4D-2D
+	  break;}
+	break;
+      }
+  }
+
+
+
+  //no longer userful - using nmrPipe to readin/out
+  void decon::PrintSpec()
+  {
+    switch(dim)
+      {
+      case 1:
+	for(int i=0;i<sliceLib1D.size();++i)
+	  sliceLib1D[i].PrintSpec();
+	break;
+      case 2:
+	for(int i=0;i<sliceLib2D.size();++i)
+	  sliceLib2D[i].PrintSpecPure();
+	break;
+      case 3:
+	switch(mode){
+	case 1:
+	  for(int i=0;i<sliceLib1D.size();++i)
+	    sliceLib1D[i].PrintSpec();
+	  break;
+	case 3:
+	  sliceLib3D[0].PrintSpec();
+	  break;}
+	break;
+      case 4:
+	switch(mode){
+	case 2:
+	  for(int i=0;i<sliceLib2D.size();++i)
+	    sliceLib2D[i].PrintSpec();
+	  break;
+	case 4:
+	  sliceLib4D[0].PrintSpec();
+	  break;}
+	break;
+      }
+  }
+
+  //FOR SYMMODE ONLY
+  void decon::RunMapBlur()
+  { //for sym mode: DBA-DB
+    switch(dim){
+    case 3:
+      for(int p=0;p<peaks;p++)
+	sliceLib1D[p].MapBlur();
+      break;
+    case 4:
+      for(int p=0;p<peaks;p++)
+	sliceLib2D[p].MapBlur();
+      break;}
+  }
+
+  //FOR SYMMODE ONLY
+  void decon::RunUnMapBlur()
+  { //for sym mode: DB-DBA
+    switch(dim){
+    case 3:
+      for(int p=0;p<peaks;p++)
+	sliceLib1D[p].UnMapBlur();
+      break;
+    case 4:
+      for(int p=0;p<peaks;p++)
+	sliceLib2D[p].UnMapBlur();
+      break;}
+  }
+
+  //FOR SYMMODE ONLY
+  /* void RunBlur() //average symmetric cross peaks  in DBA
+  { //for symmode: adjust intensities in symmetric positions
+    switch(dim){
+    case 3:
+      for(int p=0;p<peaks;p++)
+	for(int q=p+1;q<peaks;q++)
+	  if(sliceLib1D[p].DBA[q]!=0 && sliceLib1D[q].DBA[p]!=0 && sliceLib1D[p].DBR[q]==1 && sliceLib1D[q].DBR[p]==1)
+	    { //average the two and replace
+	      double test=(fabs(sliceLib1D[p].DBA[q])+fabs(sliceLib1D[q].DBA[p]) )/2.;
+	      sliceLib1D[p].DBA[q]= signy(sliceLib1D[p].DBA[q])* test;
+	      sliceLib1D[q].DBA[p]= signy(sliceLib1D[q].DBA[p])* test;
+	    }
+      break;
+    case 4:
+      for(int p=0;p<peaks;p++)
+	for(int q=p+1;q<peaks;q++)
+	  if(sliceLib2D[p].DBA[q]!=0 && sliceLib2D[q].DBA[p]!=0 && sliceLib2D[p].DBR[q]==1 && sliceLib2D[q].DBR[p]==1)
+	    { //average the two and replace
+	      double test=(fabs(sliceLib2D[p].DBA[q])+fabs(sliceLib2D[q].DBA[p]) )/2.;
+	      sliceLib2D[p].DBA[q]= signy(sliceLib2D[p].DBA[q])* test;
+	      sliceLib2D[q].DBA[p]= signy(sliceLib2D[q].DBA[p])* test;
+	    }
+      break;}
+    return;
+  }
+*/
+
+  //signbit gives 1 if negative, 0 if positive
+  int decon::signy(double value){
+    return -1*(2*signbit(value)-1);}
+
+
+  void decon::LogConvergenceEvent(const std::string &label)
+  {
+    // Event records are deliberately sparse and are flushed immediately so
+    // the live GUI can annotate protocol transitions without waiting for the
+    // next block of iteration data.  Numeric data lines remain two-column.
+    if (!convergenceFileOpened) {
+      convergenceFile.open((infile + ".conv").c_str(), std::ios::out | std::ios::trunc);
+      convergenceFileOpened = convergenceFile.is_open();
+    }
+    if (convergenceFileOpened) {
+      convergenceFile << "# EVENT\t" << systemIter << "\t" << label
+                      << "\tdim=" << dim << "\tmode=" << mode
+                      << "\tpeaks=" << CountElements() << '\n';
+      convergenceFile.flush();
+    }
+  }
+
+  void decon::DoRun()
+ {
+    LogConvergenceEvent("DoRun start");
+    cout << "Performing run..." << endl;
+    cout << "Starting cross peaks: " << CountElements() << endl;
+    //will start to work on DBA array for symmode
+    int go=1;
+    int iter=0;
+    double tacklast=0.0;
+    
+    while(go==1)
+      {
+
+	iter+=1;
+	//if(symmode)
+	//  {
+	    //if(iter!=1)
+	    //  RunUnMapBlur(); //DB->DBA
+	    //RunBlur();//average cross peaks in DBA
+	    //RunMapBlur(); // DBA->DB
+	//  }
+        // correlate("iter_"+to_string(0));
+
+
+	double tack=ApplyIter(); //calcspec, iterate DB, return sum
+
+        // Keep a process-wide iteration number for monitoring.  The local
+        // iter above is intentionally unchanged because maxIter applies to
+        // each individual DoRun() invocation.
+        systemIter += 1;
+        double convergence = 0.0;
+        if (fabs(tack) > 0.0)
+          convergence = fabs(tack-tacklast)/fabs(tack);
+
+        // Open once and use normal stream buffering.  This records every
+        // iteration while avoiding an open/close or forced flush per point.
+        if (!convergenceFileOpened) {
+          convergenceFile.open((infile + ".conv").c_str(), std::ios::out | std::ios::trunc);
+          convergenceFileOpened = convergenceFile.is_open();
+        }
+        if (convergenceFileOpened) {
+          convergenceFile << systemIter << '\t' << tack << '\n';
+          if (systemIter % convergenceFlushInterval == 0)
+            convergenceFile.flush();
+        }
+
+	//cout << iter << " " << tack << " " << tacklast << endl;
+	//printf("%i\t%Lf\t%Lf\t%Le\n",iter,tack,tacklast,1-tacklast/tack);
+	if(  (dim==4 && mode != 2) || mode==5){
+	  cout << iter << " " << tack << " " << tacklast << endl;
+    cout << "converging: " << convergence << endl;
+  }
+	else{
+		if (iter%iterShow == 0){
+		  cout << iter << " " << tack << " " << tacklast <<  " " << convergence << endl;
+		}
+	}
+	//if(fabs(1-tacklast/tack)<convVal ) {//test diff conv mod
+	//if(fabs(1-tacklast/tack)<convVal && tack< tacklast) {//test diff conv mod
+	if(convergence<convVal){
+	  cout << "converged: " << convergence << endl;
+	  go=0;
+	}
+	else
+	  tacklast=tack;
+
+    // FILE *out_pt;
+   // out_pt=fopen("testB","a");
+//fprintf(out_pt,"%e\n",tack);
+ // fclose(out_pt);
+
+
+	if(iter==maxIter)
+	  go=0;
+  }
+
+    // Make the end of each DoRun visible promptly even when it finishes
+    // between periodic flush points.
+    if (convergenceFileOpened)
+      convergenceFile.flush();
+    LogConvergenceEvent("DoRun end");
+
+    printf("Converged in %i iterations to fractional conv  %e \n",iter,convVal);
+
+    /*if(symmode)//NOT SURE WHERE TO PUT THIS
+      {
+
+	RunUnMapBlur(); //DB->DBA
+	Cull(); //B<noise remove from DBA
+	RunMapBlur(); // DBA->DB
+	}*/
+    //return with both DBA and DB arrays set
+    cout << "Current number of cross peaks: " << CountElements() << endl;
+  }
+
+/*
+  void decon::DoRun(const int p)
+ {
+   //cout << "Performing run..." << endl;
+   //cout << "Starting cross peaks: " << CountElements(p) << endl;
+    int go=1;
+    int iter=0;
+    double tacklast=0.0;
+
+    while(go==1)
+      {
+	iter+=1;
+	double tack=ApplyIter(p); //calcspec, iterate DB, return sum
+
+	//if(fabs(1-tacklast/tack)<convVal ) {//test diff conv mod
+	//if(fabs(1-tacklast/tack)<convVal && tack< tacklast) {//test diff conv mod
+	if(fabs(tack-tacklast)/fabs(tack)<convVal){
+	  //cout << "converged: " << fabs(tack-tacklast)/fabs(tack) << endl;
+	  go=0;
+	}
+	else
+	  tacklast=tack;
+
+	if(iter==maxIter)
+	  go=0;
+      }
+
+    printf("Peak %i Converged in %i iterations to fractional conv  %e: peaks %i \n",p,iter,convVal,CountElements(p));
+    //cout << "Current number of cross peaks: " << CountElements(p) << endl;
+ }
+*/
+
+
+
+//Run B_(k+1)=I.B_k / (B conv P)
+  double decon::ApplyIter()
+  {
+
+    calcspec(); //will respond to 1/2/3/4D
+    double tack=0.0;
+    switch(dim){
+    case 1:
+      tack+=sliceLib1D[0].ApplyIter(); //operate on 1D deltas
+      break;
+    case 2:
+      tack+=sliceLib2D[0].ApplyIter(); //operate on 2D deltas
+      break;
+    case 3:
+      switch(mode){
+      case 1:
+	for(int p=0;p<peaks;p++)//for each peak, work on the 1D delta
+	  tack+=sliceLib1D[p].ApplyIter();
+
+    // cout << p << endl;}
+	break;
+      case 3:
+	if(bore)
+	  {
+	    //tack=sliceLib3D[0].ApplyIter(); //else work on 3D delta
+	    
+	    //decon_parallel_Darwin_arm decon.init  136.89s user 257.02s system 293% cpu 2:14.08 total
+	    
+	    for(int p=0;p<peaks;++p) //for each peak, sync with 3D library
+	      {
+		int j=sliceLib3D[0].peakList[p].indexJ;
+		int k=sliceLib3D[0].peakList[p].indexK;
+		for(int i=0;i<sliceLib1D[p].si;++i) //update slice1
+		  {
+		    sliceLib1D[p].DB[i]=sliceLib3D[0].DB[i+j*sliceLib3D[0].si+k*sliceLib3D[0].si*sliceLib3D[0].sj];
+		    sliceLib1D[p].DS[i]=sliceLib3D[0].DS[i+j*sliceLib3D[0].si+k*sliceLib3D[0].si*sliceLib3D[0].sj];
+		  }
+		//calcspec3D() updates the shared 3D buffer directly, so refresh each 1D
+		//slice's sparse support before applying the active-only update.
+		if(sliceLib1D[p].SPARSE)
+		  sliceLib1D[p].BuildSparseDB(0.0);
+		//for(int p=0;p<peaks;p++)//for each peak, work on the 1D delta
+		tack+=sliceLib1D[p].ApplyIter();
+	      }
+	  }
+	else
+	  {
+	    tack=sliceLib3D[0].ApplyIter(); //else work on 3D delta
+	  }
+	break;}
+      break;
+    case 4:
+      for(int p=0;p<peaks;p++)//for each peak, work on the 2D delta
+        {
+          //4D mode computes DS in slice4D and copies it back to the 2D slices.
+          //Build the active 2D support explicitly before applying the update.
+          if(sliceLib2D[p].SPARSE)
+            sliceLib2D[p].BuildSparseDB(0.0);
+          tack+=sliceLib2D[p].ApplyIter();
+        }
+      break;}
+    return tack;
+  }
+
+
+/*
+//Run B_(k+1)=I.B_k / (B conv P)
+  double decon::ApplyIter(const int p)
+  {
+    calcspec(p); //will respond to 1/2/3/4D
+    double tack=0.0;
+    switch(dim){
+    case 1:
+      tack+=sliceLib1D[0].ApplyIter(); //operate on 1D deltas
+      break;
+    case 2:
+      tack+=sliceLib2D[0].ApplyIter(); //operate on 2D deltas
+      break;
+    case 3:
+      switch(mode){
+      case 1:
+	//for(int p=0;p<peaks;p++)//for each peak, work on the 1D delta
+	  tack+=sliceLib1D[p].ApplyIter();
+
+    // cout << p << endl;}
+	break;
+      case 3:
+	if(bore)
+	  {
+	    //tack=sliceLib3D[0].ApplyIter(); //else work on 3D delta
+	    
+	    //for(int p=0;p<peaks;++p) //for each peak, sync with 3D library
+	      {
+		int j=sliceLib3D[0].peakList[p].indexJ;
+		int k=sliceLib3D[0].peakList[p].indexK;
+		for(int i=0;i<sliceLib1D[p].si;++i) //update slice1
+		  {
+		    sliceLib1D[p].DB[i]=sliceLib3D[0].DB[i+j*sliceLib3D[0].si+k*sliceLib3D[0].si*sliceLib3D[0].sj];
+		    sliceLib1D[p].DS[i]=sliceLib3D[0].DS[i+j*sliceLib3D[0].si+k*sliceLib3D[0].si*sliceLib3D[0].sj];
+		  }
+		//for(int p=0;p<peaks;p++)//for each peak, work on the 1D delta
+		tack+=sliceLib1D[p].ApplyIter();
+	      }
+	  }
+	else
+	  {
+	    tack=sliceLib3D[0].ApplyIter(); //else work on 3D delta
+	  }
+	break;}
+      break;
+    case 4:
+      //for(int p=0;p<peaks;p++)//for each peak, work on the 2D delta
+	tack+=sliceLib2D[p].ApplyIter();
+      break;}
+    return tack;
+  }
+*/
+
+
+  void decon::GetChi2()
+  {
+    double chi2=0.0; //Initialise chi2
+    double N=0;
+
+    switch(dim)
+      {
+      case 1:
+	dmax=sliceLib1D[0].maxInt;
+	for(int p=0;p<peaks;p++)
+	  {
+	    chi2+=sliceLib1D[p].GetChi2();
+	    N+=sliceLib1D[p].size;
+	    if(sliceLib1D[p].maxInt>dmax)
+	      dmax=sliceLib1D[p].maxInt;
+	  }
+	break;
+      case 2:
+	dmax=sliceLib2D[0].maxInt;
+	if(sliceLib2D[0].BORE==false)
+	  {
+	    for(int p=0;p<peaks;p++)
+	      {
+		chi2+=sliceLib2D[p].GetChi2();
+		N+=sliceLib2D[p].size;
+		if(sliceLib2D[p].maxInt>dmax)
+		  dmax=sliceLib2D[p].maxInt;
+	      }
+	  }
+	else
+	  { //if running on a restricted peak list
+	    chi2+=sliceLib2D[0].GetChi2();
+	    N+=sliceLib2D[0].size;
+	    if(sliceLib2D[0].maxInt>dmax)
+	      dmax=sliceLib2D[0].maxInt;
+	  }
+	break;
+      case 3:
+	switch(bore){
+	case 1: //act on 1D deltas
+	  dmax=sliceLib1D[0].maxInt;
+	  for(int p=0;p<peaks;p++)
+	    {
+	      chi2+=sliceLib1D[p].GetChi2();
+	      N+=sliceLib1D[p].size;
+	      if(sliceLib1D[p].maxInt>dmax)
+		dmax=sliceLib1D[p].maxInt;
+	    }
+	  break;
+	case 0: //act on 3D deltas
+	  dmax=sliceLib3D[0].maxInt;
+	  chi2+=sliceLib3D[0].GetChi2();
+	  N+=sliceLib3D[0].size;
+	  break;}
+	break;
+      case 4:
+	dmax=sliceLib2D[0].maxInt;
+	for(int p=0;p<peaks;++p)
+	  {
+	    chi2+=sliceLib2D[p].GetChi2();
+	    N+=sliceLib2D[p].size;
+	    if(sliceLib2D[p].maxInt>dmax)
+	      dmax=sliceLib2D[p].maxInt;
+	  }
+	break;
+      }
+    cout << "Max intensity: " << dmax << endl;
+    cout << "AverageError:  " << pow(chi2/(N*1.),0.5)/(dmax)*100. << " %" << endl;
+  }
+
+
+  //culling in DBA space, not DB
+  void decon::CullSym()
+  {
+    cout << "CullingSym..." << endl;
+
+    switch(dim)
+      { //squash peaks if either the focused guy, or the reciprocal are below the threshold
+      case 3:
+	for(int p=0;p<peaks;++p) //for each 1D data slice
+	  for(int q=p+1;q<peaks;++q) //for each 1D data slice
+	    if(fabs(sliceLib1D[p].DBA[q])<noiseVal || fabs(sliceLib1D[q].DBA[p])<noiseVal)
+	      {
+		sliceLib1D[p].DBA[q]=0;
+		sliceLib1D[q].DBA[p]=0;
+		sliceLib1D[p].DBR[q]=0;
+		sliceLib1D[q].DBR[p]=0;
+	      }
+	break;
+      case 4:
+	for(int p=0;p<peaks;++p) //for each 1D data slice
+	  for(int q=p+1;q<peaks;++q) //for each 1D data slice
+	    {
+	      if(fabs(sliceLib2D[p].DBA[q])<noiseVal || fabs(sliceLib2D[q].DBA[p])<noiseVal)
+		{
+		  sliceLib2D[p].DBA[q]=0;
+		  sliceLib2D[q].DBA[p]=0;
+		  sliceLib2D[p].DBR[q]=0;
+		  sliceLib2D[q].DBR[p]=0;
+		}
+	    }
+	break;
+      }//endof symmode=1 dim
+
+  }
+
+  //culling in DB space
+  void decon::Cull(float frac)
+  { //for symmode: cull if sym partner is zero
+    LogConvergenceEvent("Cull");
+    //act on DBA
+    //if the reflected peak is zero
+    cout << "Culling..." << endl;
+    switch(dim){
+    case 1:
+      sliceLib1D[0].Cull(frac);
+      break;
+    case 2:
+      sliceLib2D[0].Cull(frac);
+      break;
+    case 3:
+      switch(mode){
+      case 1: //if acting on 1D deltas
+	for(int p=0;p<peaks;p++) //squash
+	  sliceLib1D[p].Cull();
+	break;
+      case 3: //if acting on 3D deltas
+
+	sliceLib3D[0].Cull(frac);
+  // for(int p=0;p<peaks;p++) //squash
+	//
+  if(bore){
+  for(int p=0;p<peaks;++p) //for each peak
+    {
+int j=sliceLib3D[0].peakList[p].indexJ;
+int k=sliceLib3D[0].peakList[p].indexK;
+for(int i=0;i<sliceLib1D[p].si;++i) //update slice1
+  sliceLib1D[p].DB[i]=sliceLib3D[0].DB[i+j*sliceLib3D[0].si+k*sliceLib3D[0].si*sliceLib3D[0].sj];
+  sliceLib1D[p].Cull();
+    }
+  }
+
+	break;}
+      break;
+    case 4:
+      for(int p=0;p<peaks;p++) //squash
+	sliceLib2D[p].Cull();
+      break;
+    }//end of symmode=0 dim
+
+    cout << "Current number of cross peaks: " << CountElements() << endl;
+    return;
+  }
+
+
+  void decon::Squash()
+  {
+    LogConvergenceEvent("Squash");
+    cout << "Squashing..." << endl;
+
+      switch(dim){
+      case 1:
+	sliceLib1D[0].Squash();
+	break;
+      case 2:
+	for(int p=0;p<peaks;p++) //squash
+	  sliceLib2D[p].Squash();
+	break;
+      case 3:
+	switch(bore){
+	case 1: //if acting on 1D deltas
+  switch(mode){
+    case 1:
+      for(int p=0;p<peaks;p++) //squash
+		      sliceLib1D[p].Squash();
+      break;
+    case 3:
+      sliceLib3D[0].Squash();
+      for(int p=0;p<peaks;++p) //for each peak
+        {
+  	int j=sliceLib3D[0].peakList[p].indexJ;
+  	int k=sliceLib3D[0].peakList[p].indexK;
+
+  	for(int i=0;i<sliceLib1D[p].si;++i) //update slice1
+  	  sliceLib1D[p].DB[i]=sliceLib3D[0].DB[i+j*sliceLib3D[0].si+k*sliceLib3D[0].si*sliceLib3D[0].sj];
+        }
+	  break;
+  }
+	  break;
+	case 0: //if acting on 3D deltas*/
+	  sliceLib3D[0].Squash();
+	  break;
+	}
+	break;
+      case 4:
+	for(int p=0;p<peaks;p++) //squash
+	  sliceLib2D[p].Squash();
+	break;}
+
+      //   break;
+      //   }
+
+    cout << "Current number of cross peaks: " << CountElements() << endl;
+    return;
+  }
+
+
+/*
+  void decon::Squash(const int p)
+  {
+    //cout << "Squashing..." << endl;
+
+      switch(dim){
+      case 1:
+	sliceLib1D[0].Squash();
+	break;
+      case 2:
+	for(int p=0;p<peaks;p++) //squash
+	  sliceLib2D[p].Squash();
+	break;
+      case 3:
+	switch(bore){
+	case 1: //if acting on 1D deltas
+  switch(mode){
+    case 1:
+      for(int p=0;p<peaks;p++) //squash
+		      sliceLib1D[p].Squash();
+      break;
+    case 3:
+      sliceLib3D[0].Squash();
+      //for(int p=0;p<peaks;++p) //for each peak
+        {
+  	int j=sliceLib3D[0].peakList[p].indexJ;
+  	int k=sliceLib3D[0].peakList[p].indexK;
+
+  	for(int i=0;i<sliceLib1D[p].si;++i) //update slice1
+  	  sliceLib1D[p].DB[i]=sliceLib3D[0].DB[i+j*sliceLib3D[0].si+k*sliceLib3D[0].si*sliceLib3D[0].sj];
+        }
+	  break;
+  }
+	  break;
+	case 0: //if acting on 3D deltas*/ /*
+	  sliceLib3D[0].Squash();
+	  break;
+	}
+	break;
+      case 4:
+	//for(int p=0;p<peaks;p++) //squash
+	  sliceLib2D[p].Squash();
+	break;}
+
+      //   break;
+      //   }
+
+      //cout << "Current number of cross peaks: " << CountElements() << endl;
+    return;
+  }
+*/
+
+
+
+
+
+  void decon::correlate(string in1)
+  { //print outputs to correlate and diag files
+    //symmode 3 (1D) and 4 (2D)
+    //no symmode 2,3 and 5
+    cout << " Started correlate fxn" << endl;
+    FILE *out_pt;
+    //string in1="out/correlate."+tag;
+    //string in1=
+
+    
+    cout << "Out name: " << in1 << endl;
+    out_pt=fopen(in1.c_str(),"w");
+
+    int cnt=0;
+    int cat=0;
+    int cnk=0;
+
+
+    if(symmode)
+      {
+	switch(dim){
+	case 3:
+	  RunUnMapBlur(); //DB->DBA
+	  for(int i=0;i<peaks;i++)
+	    for(int j=0;j<peaks;j++)
+	      {
+		if(i==j)
+		  cnk++;
+		double v1=(sliceLib1D[i].DBA[j]);
+		double v2=(sliceLib1D[j].DBA[i]);
+		//if(fabs(v1)>0 && fabs(v2)>0)
+		if(fabs(v1)>0.0)
+		  {
+		    cnt++; //we have a double sided cross peak
+
+		    double a1=sliceLib1D[i].DBA[i]; //diagonal
+		    double a2=sliceLib1D[j].DBA[j]; //diagonal
+		    double cont=pow(a1*a2,0.5);
+		    double DistScore=fabs(v1/cont+v2/cont)/2.;
+		    double FracDiff=fabs(2*(v1-v2)/(v1+v2));
+		    double IntScore=fabs(v1/cont);
+		    double f1=sliceLib3D[0].kvals[sliceLib3D[0].peakList[i].indexK]; //k //proton
+		    double f2=sliceLib3D[0].jvals[sliceLib3D[0].peakList[i].indexJ]; //j //carbon
+		    double f3=sliceLib3D[0].ivals[sliceLib3D[0].peakList[j].indexI]; //i //projected dimension
+		    //print cross and diagonal peaks
+		    fprintf(out_pt,"%s\t%s\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n",peakList[i].name.c_str(),peakList[j].name.c_str(),f1,f2,f3,v1,v2,v1/noiseVal,v2/noiseVal,FracDiff,DistScore,fabs(peakList[i].x-peakList[j].x),IntScore,a1,a2);
+
+
+		  }
+		else 	if( (v1==0 && fabs(v2)>0.0) ||   (fabs(v1)>0.0 && v2==0.0))
+		  {
+		    cat++; //one sided cross peak - not printed
+		  }
+	      }
+	  break;
+	case 4:
+	  RunUnMapBlur(); //DB->DBA
+	  for(int i=0;i<peaks;i++)
+	    for(int j=0;j<peaks;j++)
+	      {
+		if(i==j)
+		  cnk++;
+
+		double hm,cm;
+		sliceLib2D[i].LocalMax(hm,cm,j);
+
+		double v1=(sliceLib2D[i].DBA[j]); //cross peak 1
+		double v2=(sliceLib2D[j].DBA[i]); //cross peak 2
+		//if(fabs(v1)>0 && fabs(v2)>0)
+		if(fabs(v1)>0.0)
+		  {
+		    cnt++;
+
+		    double a1=fabs(sliceLib2D[i].DBA[i]); //auto peak 1
+		    double a2=fabs(sliceLib2D[j].DBA[j]); //auto peak 2
+		    if(a1==0 && a2==0)
+		      {
+			cout << "Problem: diagonal for both peaks is zero" << endl;
+		      }
+		    if(a2==0)
+		      a2=a1;
+		    if(a1==0)
+		      a1=a2;
+
+		    double cont=pow(fabs(a1*a2),0.5);
+		    double DistScore=fabs(v1/cont+v2/cont)/2.;
+		    double FracDiff=fabs(2*(v1-v2)/(v1+v2));
+		    double IntScore=fabs(v1/cont);
+
+		    double f1,f2,f3,f4;
+		    switch(mode){
+		    case 2:
+		      f1=sliceLib2D[0].jvals[sliceLib2D[0].peakList[i].indexJ]; //l //proton
+		      f2=sliceLib2D[0].ivals[sliceLib2D[0].peakList[i].indexI]; //k //carbon
+		      f3=sliceLib2D[0].peakList[j].y; //j //projected dimension
+		      f4=sliceLib2D[0].peakList[j].x; //i //projected dimension
+		      break;
+		    case 4:
+		      f1=sliceLib4D[0].lvals[sliceLib4D[0].peakList[i].indexL]; //l //proton
+		      f2=sliceLib4D[0].kvals[sliceLib4D[0].peakList[i].indexK]; //k //carbon
+		      f3=sliceLib4D[0].peakList[j].y; //j //projected dimension
+		      f4=sliceLib4D[0].peakList[j].x; //i //projected dimension
+		      break;}
+
+		    fprintf(out_pt,"%s\t%s\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n",peakList[i].name.c_str(),peakList[j].name.c_str(),f1,f2,f3,f4,v1,v2,v1/noiseVal,v2/noiseVal,FracDiff,DistScore,fabs(peakList[i].x-peakList[j].x),IntScore,a1,a2);
+
+		    //fprintf(out_pt,"%s\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n",peakList[i].name.c_str(),peakList[j].name.c_str(),f1,f2,f3,f4,v1,v2,FracDiff,DistScore,fabs(peakList[i].x-peakList[j].x),IntScore,hm,cm );
+		  }
+		else
+		  if( (v1==0 && fabs(v2)>0.0) ||   (fabs(v1)>0.0 && v2==0.0))
+		    {
+		      cat++;
+		    }
+
+	      }
+	  break;}
+
+	cout << "one sided: " << cat << endl;
+	cout << "pairs    : " << cnt << endl;
+	cout << "auto     : " << cnk << endl;
+	cout << "Total correlations : " << cat+cnt*2+cnk << endl;
+      }
+    else //not symmmode
+      {
+	switch(dim){
+	case 1:
+          if(pseudo2DOutput) cnt=sliceLib1D[0].correlatePure1D(out_pt);
+          else cnt=sliceLib1D[0].correlate(out_pt);
+	  if(sliceLib1D[0].BASE)
+	    {
+	      FILE *out_ptb;
+	      string in2="out/correlate.base.3";
+	      out_ptb=fopen(in2.c_str(),"w");
+	      sliceLib1D[0].correlateBase(out_ptb);
+	      //int cot=sliceLib1D[0].correlateBase(out_ptb);
+	      fclose(out_ptb);
+	    }
+  	  break;
+	case 2:
+	  cnt=sliceLib2D[0].correlate(out_pt,infile);
+	  break;
+	case 3:
+	  
+	  switch(bore)
+	    {
+	    case 1:  //3D stored inside 1D deltas
+	      for(int p=0;p<peaks;p++)
+		cnt+=sliceLib1D[p].correlate(out_pt);
+	      break;
+	    case 0: //3D stored inside 3D deltas
+              if(recon) cnt=sliceLib3D[0].correlateRestricted(out_pt);
+              else cnt=sliceLib3D[0].correlate(infile+".2D.proj.list",out_pt);
+	      break;
+	    }
+	  
+	  break; //endof3D
+	  
+	} //end of dim
+	
+	cout << "Total correlations : " << cnt << endl;
+      } //end of symmode
+    
+    fclose(out_pt);
+    
+    cout << " Finished correlate fxn" << endl;
+    return;
+  }
+
+
+
+
+
+  void decon::SetPeaks()
+  { //recalculate peak shape functions for 1,2,3,4D
+    LogConvergenceEvent("SetPeaks / peak-shape update");
+    switch(dim){
+    case 1:
+
+  //     for(int p=0;p<peaks;++p) //for each peak
+	// {
+	//   if(p==0)
+	//     {
+	      sliceLib1D[0].sig1=sig1;
+	      sliceLib1D[0].lor1=lor1;
+	      sliceLib1D[0].voigt1=voigt1;
+	      sliceLib1D[0].GetPeak();
+	//     }
+	//   else //copy up the peak data
+	//     sliceLib1D[p].SetPeak(sliceLib1D[0]);
+	// }
+      break;
+    case 2:
+      if(sliceLib2D[0].BORE==false)
+	{//if taking 2D planes from 4D
+	  for(int p=0;p<peaks;++p) //for each peak
+	    {
+	      if(p==0)
+		{
+		  sliceLib2D[p].sig1=sig1;
+		  sliceLib2D[p].sig2=sig2;
+		  sliceLib2D[p].GetPeak();
+		}
+	      else
+		sliceLib2D[p].SetPeak(sliceLib2D[0]);
+	    }
+	  break;
+	}
+      else
+	{
+	  sliceLib2D[0].sig1=sig1;
+	  sliceLib2D[0].lor1=lor1;
+	  sliceLib2D[0].voigt1=voigt1;
+	  sliceLib2D[0].sig2=sig2;
+	  sliceLib2D[0].lor2=lor2;
+	  sliceLib2D[0].voigt2=voigt2;
+	  sliceLib2D[0].GetPeak();
+	}
+	
+    case 3: //need to do this for both 1D and 3D deltas.
+      switch(mode){
+      case 1:
+	for(int p=0;p<peaks;++p) //for each peak
+	  {
+	    if(p==0)
+	      {
+		sliceLib1D[p].sig1=sig1;
+		sliceLib1D[p].GetPeak();
+	      }
+	    else //copy up the peak data
+	      sliceLib1D[p].SetPeak(sliceLib1D[0]);
+	  }
+	break;
+      case 3:
+	sliceLib3D[0].sig1=sig1;
+	sliceLib3D[0].sig2=sig2;
+	sliceLib3D[0].sig3=sig3;
+	sliceLib3D[0].GetPeak();
+	break;}
+      break;
+
+    case 4:
+
+      switch(mode){
+      case 2:
+	for(int p=0;p<peaks;++p) //for each peak
+	  {
+	    if(p==0)
+	      {
+		sliceLib2D[p].sig1=sig1;
+		sliceLib2D[p].sig2=sig2;
+		sliceLib2D[p].GetPeak();
+	      }
+	    else
+	      sliceLib2D[p].SetPeak(sliceLib2D[0]);
+	  }
+	break;
+      case 4:
+	sliceLib4D[0].sig1=sig1;
+	sliceLib4D[0].sig2=sig2;
+	sliceLib4D[0].sig3=sig3;
+	sliceLib4D[0].sig4=sig4;
+	sliceLib4D[0].lor1=lor1;
+	sliceLib4D[0].lor2=lor2;
+	sliceLib4D[0].lor3=lor3;
+	sliceLib4D[0].lor4=lor4;
+	sliceLib4D[0].voigt1=voigt1;
+	sliceLib4D[0].voigt2=voigt2;
+	sliceLib4D[0].voigt3=voigt3;
+	sliceLib4D[0].voigt4=voigt4;
+	sliceLib4D[0].GetPeak();
+	break;}
+      break;
+
+    }
+
+  }
+
+  /**********************************/ //start of 4D
+  void decon::Setup4D()
+  {
+    //start by reading in outputs.
+    mode=4;
+    cout << "Reading in 4D " << endl;
+
+    sliceLib4D.emplace_back();
+    slice4D &inst = sliceLib4D.back();
+    //slice4D inst;
+
+    inst.sig1=sig1;
+    inst.sig2=sig2;
+    inst.sig3=sig3;
+    inst.sig4=sig4;
+    inst.peakList=peakList; //peaklist
+    inst.peaks=peaks; //number of peaks
+    inst.voigt1=voigt1; //peak mode
+    inst.voigt2=voigt2; //peak mode
+    inst.voigt3=voigt3; //peak mode
+    inst.voigt4=voigt4; //peak mode
+    inst.lor1=lor1;
+    inst.lor2=lor2;
+    inst.lor3=lor3;
+    inst.lor4=lor4;
+    inst.noiseVal=noiseVal;
+
+    //setup dimensions
+    inst.si=si;
+    inst.imax=uimax;
+    inst.imin=uimin;
+    inst.sj=sj;
+    inst.jmax=ujmax;
+    inst.jmin=ujmin;
+    inst.sk=sk;
+    inst.kmax=ukmax;
+    inst.kmin=ukmin;
+    inst.sl=sl;
+    inst.lmax=ulmax;
+    inst.lmin=ulmin;
+
+    inst.Read(); //set omega series, setup indices and memory
+    //sliceLib4D.push_back(inst);
+    cout << "done setup " << endl;
+  }
+
+  void decon::calcspec4D()
+  {
+    cout << "Calculating 4D FT from 2D deltas... " << endl;
+    //sliceLib4D[0].BlankDB();
+    sliceLib4D[0].BlankDBFull(); //wipe DBs
+    for(int p=0;p<peaks;++p) //for each peak //sync up DB
+      {
+	//cout << "2D: " << sliceLib2D[p].CountElements() << endl;
+	/*int cnt=0;
+	for(int i=0; i<sliceLib2D[p].si;++i)
+	  for(int j=0; j<sliceLib2D[p].sj;++j)
+	    if(fabs(sliceLib2D[p].DB[i+j*sliceLib2D[p].si])>0)
+	    cnt+=1;*/
+	//cout << "cnt : " << cnt << endl;
+
+      sliceLib4D[0].SetBlur(p,sliceLib2D[p].DB); //set blur matrix from 2D
+      }
+    //cout << "ele: " << sliceLib4D[0].CountElements() << endl;
+    //cout << "blur set" << endl;
+    sliceLib4D[0].CalcSpec(); //calc 4D FT
+    //cout << "finished FT " << endl;
+    for(int p=0;p<peaks;++p) //re-syncrhoniase 2D deltas
+      {
+	sliceLib4D[0].ReadBlur(p,sliceLib2D[p].DS);
+
+	/*int kslice=sliceLib4D[0].peakList[p].indexK;
+	int lslice=sliceLib4D[0].peakList[p].indexL;
+	for(int i=0;i<sliceLib2D[p].si;++i) //update slice2
+	  for(int j=0;j<sliceLib2D[p].sj;++j) //update slice2
+	  sliceLib2D[p].DS[i+j*sliceLib2D[p].si]=sliceLib4D[0].DB[i+j*sliceLib4D[0].si+kslice*sliceLib4D[0].si*sliceLib4D[0].sj+lslice*sliceLib4D[0].si*sliceLib4D[0].sj*sliceLib4D[0].sk];*/
+      }
+    cout << "Done " << endl;
+  }
+
+
+
+  /**********************************/ //end of 4D
+
+  /**********************************/ //start of 3D
+  void decon::Setup3D()
+  {
+    //start by reading in outputs.
+    cout << "Reading in 3D " << endl;
+
+    sliceLib3D.clear();
+
+    sliceLib3D.emplace_back();
+    slice3D &inst = sliceLib3D.back();
+
+    inst.sig1=sig1;
+    inst.sig2=sig2;
+    inst.sig3=sig3;
+    inst.peakList=peakList;
+    inst.peaks=peaks;
+    inst.voigt1 = voigt1;
+    inst.voigt2 = voigt2;
+    inst.voigt3 = voigt3;
+    inst.lor1 = lor1;
+    inst.lor2 = lor2;
+    inst.lor3 = lor3;
+
+    inst.noiseVal=noiseVal;
+
+    inst.squash_window_i=squash_window_i;
+    inst.squash_window_j=squash_window_j;
+    inst.squash_window_k=squash_window_k;
+
+    inst.si=si;
+    inst.imax=uimax;
+    inst.imin=uimin;
+    inst.sj=sj;
+    inst.jmax=ujmax;
+    inst.jmin=ujmin;
+    inst.sk=sk;
+    inst.kmax=ukmax;
+    inst.kmin=ukmin;
+
+    inst.SetMem(); //set omega series, setup indices and memory
+
+
+    //sliceLib3D.push_back(inst);
+
+    //Create a snipped up 3D if running in bore mode.
+    // cout << "setup complete " << endl;
+  }
+
+  void decon::calcspec3D()
+  {
+    sliceLib3D[0].BlankDB();
+    for(int p=0;p<peaks;++p) //for each peak
+      sliceLib3D[0].SetBlur(p,sliceLib1D[p].DB); //set blur matrix
+
+    sliceLib3D[0].CalcSpec();
+
+    for(int p=0;p<peaks;++p) //for each peak
+      {
+	int j=sliceLib3D[0].peakList[p].indexJ;
+	int k=sliceLib3D[0].peakList[p].indexK;
+	for(int i=0;i<sliceLib1D[p].si;++i) //update slice1
+	  {
+	    sliceLib1D[p].DB[i]=sliceLib3D[0].DB[i+j*sliceLib3D[0].si+k*sliceLib3D[0].si*sliceLib3D[0].sj];
+	    sliceLib1D[p].DS[i]=sliceLib3D[0].DS[i+j*sliceLib3D[0].si+k*sliceLib3D[0].si*sliceLib3D[0].sj];
+	  }
+      }
+  }
+
+
+  /**********************************/ //end of 3D
+
+
+  /**********************************/ //start of 2D
+
+  void decon::Setup2Dfrom4D()
+  {
+    //start by reading in outputs.
+    mode=2;
+    cout << "Reading in 2D " << endl;
+
+    for(int p=0;p<peaks;++p) //for each peak
+      {
+	sliceLib2D.emplace_back();
+	slice2D &inst = sliceLib2D.back();
+
+	inst.sig1=sig1;
+	inst.sig2=sig2;
+	inst.si = si;
+	inst.sj = sj;
+	inst.refp=p;
+	inst.refx=peakList[p].x; //class needs this to be C
+	inst.refy=peakList[p].y; //class needs this to be H
+	inst.refn=peakList[p].name; //name
+	cout << inst.refx << " " << inst.refy << " " << inst.refn << " " << endl;
+
+	inst.peakList=peakList;
+	inst.peaks=peaks;
+	inst.lor1=lor1;
+	inst.lor2=lor2;
+	inst.voigt1=voigt1;
+	inst.voigt2=voigt2;
+	inst.symmode=symmode;
+	inst.noiseVal=noiseVal;
+	inst.squash_window_i=squash_window_i;
+	inst.squash_window_j=squash_window_j;
+	inst.Read();
+
+	inst.InitBlur(); //set blur matrix
+
+	//sliceLib2D.push_back(inst);
+
+      }
+
+    SetPeaks();
+
+    if(symmode)
+      { //do extra squashing if we are symmetric
+	cout << "cross peaks above theshold: " << CountElements() << endl;
+
+	// for(int p=0;p<peaks;++p) //for each 1D data slice
+	//   sliceLib2D[p].CullCentral(squashH,squashC);
+	RunMapBlur(); //DBA->DB
+	cout << "cross peaks after centralcull: " << CountElements() << endl;
+	/*
+	centrefac=1;
+	for(int p=0;p<peaks;++p) //for each 1D data slice
+	  for(int q=0;q<peaks;++q) //for each 1D data slice
+	    if(p!=q) //for all peaks other than diagonals...
+	      {
+
+		if( fabs(peakList[p].x - peakList[q].x) < squashH*centrefac)
+		  if( fabs(peakList[p].y - peakList[q].y) < squashC*centrefac)
+		    { //if too close to diagonal....
+		      sliceLib2D[p].DBA[q]=0; //crush
+		      sliceLib2D[q].DBA[p]=0; //crush
+		      sliceLib2D[p].DBR[q]=0; //crush
+		      sliceLib2D[q].DBR[p]=0; //crush
+		    }
+	      }
+	*/
+	cout << "cross peaks not squashed: " << CountElements() << endl;
+
+	// CullSym();
+
+	/*
+	//if the reflected peak is zero
+	for(int p=0;p<peaks;p++) //for each 1D data slice
+	  for(int q=p+1;q<peaks;q++) //for each 1D data slice
+	    if(sliceLib2D[p].DBA[q]==0 || sliceLib2D[q].DBA[p]==0)
+	      {
+		sliceLib2D[p].DBA[q]=0; //crush
+		sliceLib2D[q].DBA[p]=0; //crush
+		sliceLib2D[p].DBR[q]=0; //crush
+		sliceLib2D[q].DBR[p]=0; //crush
+	      }
+	*/
+	RunMapBlur(); //DBA->DB
+	cout << "cross peaks that satisfy symmetry: " << CountElements() << endl;
+      }
+
+    cout << "done 2D setup" << endl;
+
+  }
+
+
+  void decon::Setup1Dpure(pipe &pipefile)
+  {
+    //start by reading in outputs.
+    mode=1;
+    cout << "Setting up 1D " << endl;
+
+    //sliceLib1D.clear();
+
+
+    sliceLib1D.emplace_back();
+    slice1D &inst = sliceLib1D.back();
+
+    //slice1D inst;
+    inst.sig1=sig1;
+    inst.lor1=lor1;    //gamma
+    inst.voigt1 = voigt1; //nu
+    inst.si=si;
+    cout << "Setting up 1D " << endl;
+    inst.imax=uimax;
+    inst.imin=uimin;
+    inst.squash_window_i=squash_window_i;
+    cout << "Setting up 1D " << endl;
+    inst.symmode=0;
+
+    inst.peaks=1;
+
+    inst.noiseVal=noiseVal;
+
+    // Pure 1D spectra are comparatively dense, so direct sparse convolution
+    // is slower than the existing FFTW convolution path.  Keep SPARSE enabled
+    // by default for slice1D objects used by higher-dimensional protocols, but
+    // force pure 1D deconvolution to use Fourier convolution throughout.
+    inst.SPARSE=false;
+
+    inst.ReadPipe(pipefile);
+    //sliceLib1D.push_back(inst);
+
+    SetPeaks();
+    cout << "done 1D setup" << endl;
+
+  }
+
+  void decon::SetupSTD(pipe &pipefile)
+  {
+    mode=2;
+    cout << "Reading in both slices " << endl;
+
+    sliceLib2D.emplace_back();
+    slice2D &inst = sliceLib2D.back();
+    //slice2D inst;
+
+    inst.sig1=sig1;
+    inst.si=si;
+    inst.sj=sj;
+
+    inst.imax=uimax;
+    inst.imin=uimin;
+    inst.jmax=ujmax;
+    inst.jmin=ujmin;
+    inst.squash_window_i=squash_window_i;
+    inst.squash_window_j=squash_window_j;
+
+    inst.symmode=0;
+    //inst.refx=peakList[i].x; //class needs this to be C
+    //inst.refy=peakList[i].y; //class needs this to be H
+    //inst.refn=peakList[i].name; //name
+    inst.peaks=1;
+    inst.voigt1=voigt1;
+    inst.lor1 = lor1;
+    inst.noiseVal=noiseVal;
+    inst.ReadPipe(pipefile);
+    //sliceLib2D.push_back(inst);
+
+    cout << "Reading in 1Ds" << endl;
+    for(int slice=0;slice<si;++slice)
+    {
+      sliceLib1D.emplace_back();
+      slice1D &inst = sliceLib1D.back();
+      //slice1D inst;
+      inst.sig1=sig1;
+      inst.lor1=lor1;    //gamma
+      inst.voigt1 = voigt1; //nu
+      inst.si=sj;
+      cout << "Setting up 1D " << endl;
+      inst.imax=uimax;
+      inst.imin=uimin;
+      inst.squash_window_i=squash_window_i;
+      cout << "Setting up 1D "  << sj<< endl;
+      inst.symmode=0;
+      inst.peaks=1;
+      if (slice == 0)      inst.noiseVal=noiseVal;
+      else inst.noiseVal=noiseValSTD;
+      inst.MakeSquare();
+
+      dim = 1;
+
+      FILE *out_pt;
+      string in1="correlate."+to_string(slice);
+      out_pt=fopen(in1.c_str(),"w");
+      // SetPeaks();
+      for(int i=0;i<inst.si;++i) { //update slice1
+        // cout << i << " " << i+slice*sj << " " << inst.si << endl;
+        // cout << sliceLib2D[0].DI[i + slice*sj] << endl;
+        if (slice % 2 ==0 ){
+          inst.DI[i] = sliceLib2D[0].DI[i*si];
+        }
+        else{
+          inst.DI[i] = sliceLib2D[0].DI[(i*si)+1]-sliceLib2D[0].DI[i*si] ;
+          // cout << inst.DI[i] << endl;
+        }
+
+        fprintf(out_pt,"%i\t%e\n", i, inst.DI[i]);
+
+        }
+      inst.InitBlur();
+      inst.GetPeak();
+      fclose(out_pt);
+      //sliceLib1D.push_back(inst);
+
+      }
+    }
+
+  void decon::Setup2Dpure(pipe &pipefile)
+  {
+    //start by reading in outputs.
+    mode=2;
+    cout << "Setting up 2D " << endl;
+
+    sliceLib2D.emplace_back();
+    slice2D &inst = sliceLib2D.back();
+    //slice2D inst;
+
+    inst.sig1=sig1;
+    inst.sig2=sig2;
+    inst.si=si;
+    inst.sj=sj;
+
+    inst.imax=uimax;
+    inst.imin=uimin;
+    inst.jmax=ujmax;
+    inst.jmin=ujmin;
+    inst.squash_window_i=squash_window_i;
+    inst.squash_window_j=squash_window_j;
+
+    inst.symmode=0;
+    //inst.refx=peakList[i].x; //class needs this to be C
+    //inst.refy=peakList[i].y; //class needs this to be H
+    //inst.refn=peakList[i].name; //name
+    inst.peaks=1;
+    inst.voigt1=voigt1;
+    inst.voigt2=voigt2;
+    inst.lor1 = lor1;
+    inst.lor2 = lor2;
+    inst.noiseVal=noiseVal;
+    inst.ReadPipe(pipefile);
+
+    inst.GetPeak();
+
+    //sliceLib2D.push_back(inst);
+
+    //sliceLib2D[0].GetPeak();
+    //SetPeaks();//Calculate peak shapes
+    cout << "done 2D setup" << endl;
+
+  }
+
+
+  void decon::calcspec2D()
+  {
+    for(int i=0;i<sliceLib2D.size();++i)
+      {
+	//switch(dim){
+	//case 3:
+	//  sliceLib2D[i].SetBlur(sliceLib1D[i].DB); //syncronise blur matrix
+	//  break;}
+
+	sliceLib2D[i].CalcSpec();
+
+	//switch(dim){
+	//case 3:
+	//  for(int j=0;j<sliceLib1D[i].si;++j) //update slice1
+	//    sliceLib1D[i].DS[j]=sliceLib2D[i].DS[j+sliceLib2D[i].refj*sliceLib2D[i].si];
+	//  break;
+	//case 4:
+	//  break;}
+
+      }
+  }
+
+
+  /**********************************/ //start of 2D
+
+
+
+  /**********************************/ //start of 1D
+  void decon::Setup1Dfrom3D(pipe &pipefile)
+  {
+    cout << "Reading in 1Ds" << endl;
+    sliceLib3D[0].BlankDB();  //blank each slice
+
+    sliceLib1D.clear();
+    
+    //start by reading in outputs.
+    for(int p=0;p<peaks;++p) //for each peak
+      {
+	sliceLib1D.emplace_back();
+	slice1D &inst = sliceLib1D.back();
+
+	inst.sig1=sig1;  //extracting along i
+	inst.refp=p;
+	inst.refx=peakList[p].x; //H
+	inst.refy=peakList[p].y; //C
+	inst.refn=peakList[p].name; //name
+	// cout << inst.refn << " I am here" << endl;
+	inst.peakList=peakList;
+	inst.peaks=peaks;
+	inst.voigt1=voigt1;
+	inst.lor1=lor1;
+	inst.symmode=symmode;
+	inst.squash_window_i=squash_window_i;  //integer
+  // cout << inst.squash_window_i << " squash window " << endl;
+	inst.si=si;
+	inst.imax=uimax;
+	inst.imin=uimin;
+	inst.size=si;
+	inst.noiseVal=noiseVal;
+	//inst.Read();
+	//inst.MakeSquare();
+	//inst.ReadPipe();
+  // cout << inst.squash_window_i << " squash window " << endl;
+	
+	  int j=sliceLib3D[0].peakList[p].indexJ;
+	  int k=sliceLib3D[0].peakList[p].indexK;
+//	  if (inst.refn == "56"){
+//	  	 cout << inst.imax << " " << inst.imin << endl;
+//	  	 cout << sliceLib3D[0].sj << " " << sliceLib3D[0].sk << endl;
+//	  	 cout << inst.refx << "  " << inst.refy << endl;
+//	  	 cout << inst.refn << " " << j << " " << k << endl;
+//
+//	  }
+
+	  if( fabs(sliceLib3D[0].jvals[j]-peakList[p].y ) >0.2 || fabs(sliceLib3D[0].kvals[k]-peakList[p].x ) >0.1 )
+	    {
+	      cout << "WARNING: " << endl;
+	      cout << fabs(sliceLib3D[0].jvals[j]-peakList[p].y ) << endl;
+	      cout <<  fabs(sliceLib3D[0].kvals[k]-peakList[p].x ) << endl;
+	      cout << "possible problem with transposing peak lists" << endl;
+	      cout << "Target peak " << peakList[p].name << endl;
+	      cout << "Shift1:    " << peakList[p].x    << endl;
+	      cout << "Shift2:    " << peakList[p].y    << endl;
+	      cout << "ppm values in 3D spectrum:" << endl;
+	      cout << "Shift1: " << sliceLib3D[0].kvals[k] << endl;
+	      cout << "Shift2: " << sliceLib3D[0].jvals[j] << endl;
+	      cout << endl;
+	    }
+
+
+	  inst.ReadPipeFrom3D(pipefile,j,k);
+
+	    /*
+	  //copy up intensity information from 3D.
+	  //need to replace this and do this from pipe file.
+	  for(int i=0;i<inst.si;++i) { //update slice1
+		  inst.DI[i] = sliceLib3D[0].DI[i + j * sliceLib3D[0].si + k * sliceLib3D[0].si * sliceLib3D[0].sj];
+//		  if (inst.refn == "56") {
+//			  cout << inst.DI[i] << endl;
+//		  }
+	  }
+	    */
+	
+
+      }
+
+    SetPeaks(); //calculate peak shapes (copy up from first)
+
+    //calcspec1D();
+    //calcspec3D();
+    //PrintSpec1D();
+    //exit(100);
+
+    if(symmode)
+      { //do extra squashing if we are symmetric
+	cout << "cross peaks above theshold: " << CountElements() << endl;
+
+	for(int p=0;p<peaks;++p) //for each 1D data slice
+	  sliceLib1D[p].CullCentral(squashC);
+
+	/*
+	centrefac=1;
+	  for(int q=0;q<peaks;++q) //for each 1D data slice
+	    if(p!=q) //for all peaks other than diagonals...
+		if( fabs(peakList[p].y - peakList[q].y) < squashC*centrefac)
+		  { //if too close to diagonal....
+		    sliceLib1D[p].DBA[q]=0; //crush
+		    sliceLib1D[q].DBA[p]=0; //crush
+		    sliceLib1D[p].DBR[q]=0; //crush
+		    sliceLib1D[q].DBR[p]=0; //crush
+		    }*/
+
+	// CullSym();
+	RunMapBlur(); //DBA->DB
+	cout << "cross peaks that satisfy symmetry: " << CountElements() << endl;
+      }
+    cout << "Setup1D complete" << endl;
+
+
+    /*
+    //start by reading in outputs.
+    for(int p=0;p<peaks;++p) //for each peak
+      {
+	//get an appropriate range in x y z for each peak.
+	//create a 3D instance for each bore.
+	//place delta functions within each bore.
+	//set the peak shape in the bore.
+
+	//no need to run the data merge.
+
+      }
+
+      FXN to calculate spectrum.
+      //blank 3D.
+      for(int p=0;p<peaks;++p) //for each peak
+      {
+      //adjust delta functions for the 3D slice.
+      //calculate simulation.
+      //map simulation to main.
+
+      //do unidec iteraation on the 3D.
+      //it's just the calcspec function that needs adjustment.
+      //and the map/unmap blurs.
+      //can use the same 1D slice blurs/mapping for the fake 3D tiles + relationship to 3D
+      }
+      
+    */
+  }
+
+
+  void decon::calcspec1D()
+  {
+    //if(symmode)
+    //  RunMapBlur(); //DBA->DB
+
+    //an obvious candidate for parallelisation.
+    for(int i=0;i<sliceLib1D.size();++i)
+	sliceLib1D[i].CalcSpec();
+
+  }
+
+
+  /**********************************/ //end of 1D
+
+
+
+  //perform 3D deconvolution
+  //start with taking 1D splices
+  //then perform option 3D decon
+  //reconstruct 3D spectrum, slice and project.
+
+
+  //a Binit file can contain a list of ppms: this means don't initialise in all places.
+  //1. if does not equal False, read file and use this to set Binits for deltas.
+
+  //also: add baseline mode.
+  //if we are baselining, setup window.
+  //if doing a protein baseline, need to read in protein baseline file.
+  //need to fft and save for us.
+
+  //when calculating spectrum, add contribution from convolution of baseline
+  //need to figure out which deltas to use for baseline.
+
+
+  //in the UDC iterator, need to have option for averaging I when dealing with baseline./
+  //udc needs to know if we have a baseline in play or not.
+
+  //strategy: lets add the baseline mode as an addition.
+  //1. read file. make PSF. (note addbackground function, with protein centre) //DONE
+  //2. read window to use, and corresponding mask.                             //not done. currently single val
+  //3. in simspec, add baseline component if needed.                           //DONE
+  //4. In UDC, if mode is on, increment baseline deltas, using window.         //
+
+  void decon::ProtocolSTD(int argc, char *argv[])
+  {
+    cout << "Running uSTA protocol" << endl;
+
+    if (parsed ==0){
+
+      infile=argv[5];
+      noiseVal =atof(argv[6]); //noise floor
+      sig1     =atof(argv[7]);     //standard deviation for gaussian 'distance'  //f1
+      fac      =atof(argv[8]);    //process with a wider peak, fit with a thinner
+      squash   =atof(argv[9]); //ppm range round the centre peak to kill
+
+      voigt1=atof(argv[10]); //0 for gaus 1 for lorentz  //nu
+      lor1=atof(argv[11]); //gamma
+      baseFile=argv[12];
+      noiseValSTD=atof(argv[16]);
+    }
+
+    symmode=0;
+
+    convVal=1E-12;   //fractional convergence criteria.
+    maxIter=10000;
+    peaks=1; //limit peaklist size
+
+    sig1=sig1*fac;  //modify peakwidth for deconvolution
+    lor1=lor1*fac;
+
+    sig2 = sig1;
+    lor2 = lor1;
+    voigt2 = voigt1;
+
+    pipe pipefile;
+    pipefile.iName=infile;
+    cout << pipefile.iName << endl;
+    pipefile.readHeader();
+
+    //order from dimorder
+    si=pipefile.size[pipefile.dimord[1]];  //2 //carbon
+    sj=pipefile.size[pipefile.dimord[0]];
+    // cout << si << endl;
+    // exit(100);
+    uimax=pipefile.xvals[pipefile.dimord[0]][pipefile.size[pipefile.dimord[0]]-1];
+    uimin=pipefile.xvals[pipefile.dimord[0]][0]; //maxfirst
+
+    double di = fabs(pipefile.xvals[pipefile.dimord[0]][1] - pipefile.xvals[pipefile.dimord[0]][0]);
+    squash_window_i=(sig1/di)*4./4.;
+
+    cout << " x(i) dimension: " << uimin << " " << uimax << " " << si << "sig " << sig1 << endl; //carbon
+    // SetupSTD(pipefile);
+
+    SetupSTD(pipefile);
+
+
+
+
+    exit(100);
+  }
+
+  
+  // 31st March 2025: 
+  //synced up with protocol1D in uSTA project
+  //doesn't give exactly the same values as decon_darwin_i386_uSTA
+  //differences: we now used floats, uSTA seems to use doubles
+  //some differences in the slice1D functions.
+  //disconcerting.
+     
+  void decon::Protocol1D(int argc,char *argv[])
+  {
+    cout << "Protocol1D" << endl;
+
+    if (parsed ==0){
+
+      infile=argv[4];
+      noiseVal =atof(argv[5]); //noise floor
+      sig1     =atof(argv[6]);     //standard deviation for gaussian 'distance'  //f1
+      fac      =atof(argv[7]);    //process with a wider peak, fit with a thinner
+      //squash   =atof(argv[8]); //ppm range round the centre peak to kill
+      convVal = 1e-4;
+      
+      squash_window_i=atoi(argv[8]);  //OUT OF PLACE: IF READING IN PARSED FILE
+      voigt1=atof(argv[9]); //0 for gaus 1 for lorentz  //nu
+      lor1=atof(argv[10]); //gamma
+      baseFile=argv[11];
+      
+    }
+    
+    symmode=0;
+
+    //convVal=1E-12;   //fractional convergence criteria.
+    //maxIter=10000;
+    maxIter=10000;
+    peaks=1; //limit peaklist size
+
+    if(!enhance)
+      {
+        sig1=sig1*fac;  //ordinary peak detection starts with a wider peak
+        lor1=lor1*fac;
+      }
+
+    pipe pipefile;
+    pipefile.iName=infile;
+    pipefile.readHeader();
+
+    //order from dimorder
+    si=pipefile.size[pipefile.dimord[0]];  //2 //carbon
+    uimax=pipefile.xvals[pipefile.dimord[0]][pipefile.size[pipefile.dimord[0]]-1];
+    uimin=pipefile.xvals[pipefile.dimord[0]][0]; //maxfirst
+
+    double di = fabs(pipefile.xvals[pipefile.dimord[0]][1] - pipefile.xvals[pipefile.dimord[0]][0]);
+
+    // Match the 2D/3D protocols: derive the 1D squash width from the
+    // broadened detection peak width and the digital resolution.  This is
+    // especially important for pseudo2D, where Protocol1D supplies the
+    // authoritative spectral peak list.
+    squash_window_i = max(1, int((sig1/di)*3./4.));
+
+    
+    cout << " x(i) dimension: " << uimin << " " << uimax << " " << si << "sig " << sig1 << endl; //carbon
+
+    Setup1Dpure(pipefile);  //read in .proj files, initialise Blur
+
+    //cout << baseFile << "x" <<endl;
+
+    //cout << "weird" <<endl;
+    if(baseFile!="False")
+
+      { cout << "weird" <<endl;
+      	pipe basefile;
+      	basefile.iName=baseFile;
+      	basefile.readHeader();
+      	cout << "Reading base: " << baseFile << endl;
+      	cout << "baseCentre:   " << atof(argv[12]) << endl;
+      	cout << "windowB:      " << atoi(argv[13]) << endl;
+      	sliceLib1D[0].baseCentre=atof(argv[12]);
+      	sliceLib1D[0].windowB=atoi(argv[13]);
+      	sliceLib1D[0].ReadBase(basefile); //incorporate baseline into calc.
+      }
+
+    if (parsed ==0) {
+      initFile=argv[14]; //0 for gaus 1 for lorentz
+    if(initFile!="False") //read in Binit file, and use this to set B vals
+      sliceLib1D[0].SetBinit(initFile);
+    }
+
+    // Enhance returns the unclustered deconvolved source distribution.
+    // Use the requested peak shape directly, run UniDec once, and do not
+    // create a peak list or reconvolved DS spectrum.
+    if(enhance)
+      {
+        cout << "Enhance: single 1D DoRun using raw peak widths" << endl;
+        DoRun();
+        pipefile.WritePipe1D(sliceLib1D[0].DB,si);
+        return;
+      }
+
+    //DECONVOLUTION: will run until convergence criteria is met
+    //cout << baseFile << endl;
+    if(baseFile!="False") //if baseline file...
+      {
+	int shortIter=11; //set iterations to 11.
+	//cout << shortIter << endl;
+	cout << "cross peaks above theshold: " << CountElements() << endl;
+	for(int i=0;i<shortIter;++i) //do deltas
+	  {
+	    calcspec(); //will respond to 1/2/3/4D
+	    sliceLib1D[0].ApplyIter();
+	  }
+	for(int i=0;i<shortIter;++i) //do base
+	  {
+	    calcspec(); //will respond to 1/2/3/4D
+	    sliceLib1D[0].ApplyIterBase();
+	  }
+
+	DoRun();  //do final run
+
+	//squash twice
+	//if(noiseVal>0)
+	  {
+	    Squash();
+	    Squash();
+	  }
+	//Squash();
+
+	//reset PSF
+	sig1=sig1/fac;  //modify peakwidth for deconvolution
+	lor1=lor1/fac;
+	SetPeaks(); //recalculate peakshape with reduced width
+
+	DoRun();
+
+	Cull(0.5);
+	cout << "noiseVal " << noiseVal << " " << noiseVal*0.5 << endl;
+	DoRun();
+
+      }
+
+    else if(baseFile == "False")
+      {
+	//ONE
+	//cout << "poop" <<endl;
+	DoRun(); //perform run and cull
+	//TWO
+	if(noiseVal>0.0)
+	  Squash();
+	//Squash();
+	//Squash();
+	//Squash();
+
+	//Cull(0.01);
+	// //correlate("peak.2");
+	// //THREE
+	sig1=sig1/fac;  //modify peakwidth for deconvolution
+	lor1=lor1/fac;
+	cout << "cross peaks above theshold: " << CountElements() << endl;
+	SetPeaks(); //recalculate peakshape with reduced width
+	cout << "cross peaks above theshold: " << CountElements() << endl;
+	DoRun(); //perform run and cull
+	// cout << "pre cull " << endl;
+	//
+	Cull(0.5);
+	// cout << "post cull " << endl;
+	DoRun(); //perform run and cull
+	//calcspec();
+	//PrintSpec();  //print files
+
+      }
+
+    cout << "cross peaks above theshold: " << CountElements() << endl;
+    correlate(infile+".1D.list"); //work out which NOEs are allowed through symmetry
+    pipefile.WritePipe1D(sliceLib1D[0].DS,si);
+    GetChi2(); //calculate chi2
+    //pipefile.WritePipe1D(sliceLib2D[0].DS,si,sj);
+
+
+  }
+
+
+
+  //perform 3D deconvolution
+  //start with taking 1D splices
+  //then perform option 3D decon
+  //reconstruct 3D spectrum, slice and project.
+  void decon::Protocol2D(int argc,char *argv[])
+  {
+    cout << "Protocol2D" << endl;
+    dim=2;
+    mode=2;
+    bore=0;
+
+    if (parsed == 0){
+
+      infile=argv[4];
+      noiseVal =atof(argv[5]); //noise floor
+
+      sig1     =atof(argv[6]);     //standard deviation for gaussian 'distance'  //f1
+      sig2     =atof(argv[7]);     //standard deviation for gaussian 'distance'  //f2
+      fac      =atof(argv[8]);    //process with a wider peak, fit with a thinner
+      squash   =atof(argv[9]); //ppm range round the centre peak to kill
+
+  	  //readPeak(); //read the peak list file
+  	  //peaks=1; //subverting peaklist - need to create file yz.dat.out
+  	  //peakList[0].name="yz";
+      //maxIter= atof(argv[10]);
+      voigt1=atof(argv[10]); //0 for gaus 1 for lorentz
+      voigt2=atof(argv[11]); //0 for gaus 1 for lorentz
+      lor1 = atof(argv[12]);
+      lor2 = atof(argv[13]);
+    }
+
+
+    
+    peaks=1; //limit peaklist size
+    symmode=0; ///not running symmetry mode
+
+    if(!recon && !enhance)
+      {
+        sig1=sig1*fac;  //modify peakwidth for deconvolution
+        sig2=sig2*fac;  //modify peakwidth for deconvolution
+        lor1 = lor1*fac;
+        lor2 = lor2*fac;
+      }
+
+    pipe pipefile;
+    pipefile.iName=infile;
+    pipefile.readHeader();
+    
+    //order from dimorder
+    si=pipefile.size[pipefile.dimord[1]];  //2 //carbon
+    sj=pipefile.size[pipefile.dimord[0]];  //1 //proton
+    
+    uimax=pipefile.xvals[pipefile.dimord[1]][pipefile.size[pipefile.dimord[1]]-1];
+    uimin=pipefile.xvals[pipefile.dimord[1]][0]; //maxfirst
+    ujmax=pipefile.xvals[pipefile.dimord[0]][pipefile.size[pipefile.dimord[0]]-1];
+    ujmin=pipefile.xvals[pipefile.dimord[0]][0]; //maxfirst
+    
+    double di = fabs(pipefile.xvals[pipefile.dimord[1]][1] - pipefile.xvals[pipefile.dimord[1]][0]);
+    double dj = fabs(pipefile.xvals[pipefile.dimord[0]][1] - pipefile.xvals[pipefile.dimord[0]][0]);
+    
+    squash_window_i=(sig1/di)*3./4.; //to be related to sig1
+    squash_window_j=(sig2/dj)*3./4.; //to be related to sig2
+
+    cout << " Maxiter :" << maxIter << endl;
+    cout << " Conv    :" << convVal << endl;
+    cout << " x(i) dimension: " << uimin << " " << uimax << " " << si << "sig " << sig1 << endl; //carbon
+    cout << " y(j) dimension: " << ujmin << " " << ujmax << " " << sj << "sig " << sig2 << endl; //proton
+    
+    Setup2Dpure(pipefile);  //read in .proj files, initialise Blur
+
+    if(enhance)
+      {
+        cout << "Enhance: single 2D DoRun using raw peak widths" << endl;
+        DoRun();
+        sliceLib2D[0].SPARSE=false;
+        pipefile.WritePipe2D(sliceLib2D[0].DB,si,sj);
+        return;
+      }
+
+    // CB edit to enable reconvolution START 06/07/2019
+    if (recon || noiseVal == -1){
+      cout << "Restricted reconstruction, not deconvolution...";
+      if(recon) readPeakND();
+      else readPeak();
+      
+      //for (int p=0; p<peaks; p++){
+      //	cout << peakList[p].x << endl;
+      //}
+      sliceLib2D[0].peakList = peakList;
+      sliceLib2D[0].peaks = peaks;
+      sliceLib2D[0].InitBlurPeak();
+      
+      
+      if(!recon)
+        {
+          // Backwards compatibility for legacy dmax=-1 recon jobs, which
+          // entered Protocol2D after the ordinary fac expansion above.
+          sig1=sig1/fac;
+          sig2=sig2/fac;
+          lor1=lor1/fac;
+          lor2=lor2/fac;
+        }
+      sliceLib2D[0].sig1=sig1;
+      sliceLib2D[0].sig2=sig2;
+      sliceLib2D[0].lor1=lor1;
+      sliceLib2D[0].lor2=lor2;
+      sliceLib2D[0].GetPeak(); // use the requested final peak shape directly
+      
+      //SetPeaks(); //recalculate peakshape with reduced width
+      
+      cout << " Peak reading done" << endl;
+      //sliceLib2D[0].SetIndex();
+      /*for (int p=0; p<peaks; p++){
+	peakEntry current_peak = sliceLib2D[0].peakList[p];
+	int i = current_peak.indexI;
+	int j = current_peak.indexJ;
+	int ii = i + j*si;
+	//cout << ii << endl;
+	sliceLib2D[0].DB[ii] = 100;
+	}*/
+      
+      //correlate("1");
+      cout <<"Written correlate.1" << endl;
+      DoRun();
+      sliceLib2D[0].UnMapBlur(); //map from DB to DBA
+    }
+    else {
+
+      DoRun(); //perform run and cull
+      
+      //correlate("1");
+      Squash();
+
+
+      //correlate("2");
+      DoRun();
+      // correlate("3");
+      
+      cout << "Contracting peak shape and re-runing..."<< endl;
+      sig1=sig1/fac;  //modify peakwidth for deconvolution
+      sig2=sig2/fac;  //modify peakwidth for deconvolution
+      
+      lor1=lor1/fac;
+      lor2=lor2/fac;
+      SetPeaks(); //recalculate peakshape with reduced width
+      //DoRun(); //perform run and cull
+      Cull(0.5);
+    }
+    // CB edit to enable reconvolution FINISH 06/07/2019
+    sliceLib2D[0].SPARSE=false;
+    calcspec();
+    //pipefile.WritePipe2D(sliceLib2D[0].DS,si,sj);
+    //PrintSpec();  //print files
+    cout << "Final cross peaks: " << CountElements() << endl;
+    correlate(infile+".2D.list"); //work out which NOEs are allowed through symmetry
+    //PrintSpec();
+    GetChi2(); //calculate chi2
+
+    //double radiusXppm=0.1;
+    //double radiusYppm=2;
+
+    if(FIT)
+      {
+        double radiusIppm = 0.0;
+        double radiusJppm = 0.0;
+
+        if (FitRadFix)
+          {
+            // Explicit GUI radii use the same F1/F2 convention as the 2D
+            // fitter: dimension 1 -> I, dimension 2 -> J.  If only one key
+            // was supplied, the other retains its class default.
+            radiusIppm = FitF1;
+            radiusJppm = FitF2;
+            cout << "FIT fixed radii (ppm), F1/F2: "
+                 << radiusIppm << " " << radiusJppm << endl;
+          }
+        else
+          {
+            // FitRad is the GUI-controlled factor defining how far down the
+            // peak shape the fitting ROI extends: the edge is where the peak
+            // reaches noise/FitRad relative to the spectrum maximum.
+            double fitRadFactor = FitRad;
+            if (fitRadFactor <= 0.0)
+              {
+                cerr << "FitRad must be > 0; using 5.0" << endl;
+                fitRadFactor = 5.0;
+              }
+            const double target = (noiseVal/fitRadFactor) / sliceLib2D[0].maxInt;
+            radiusIppm = SolveRadiusForThreshold1D(target, sig1, lor1, voigt1);
+            radiusJppm = SolveRadiusForThreshold1D(target, sig2, lor2, voigt2);
+            cout << "FIT radii (ppm), FitRad=" << fitRadFactor << ": "
+                 << radiusIppm << " " << radiusJppm << endl;
+          }
+
+        // In RECON mode fit the explicitly supplied reference peak list.
+        // Otherwise preserve the existing DB-derived peak selection.
+        sliceLib2D[0].FitPeaks2D(radiusIppm, radiusJppm,
+                                 "fitted_params.out", "fitted.out",
+                                 50, 0.0, recon, FitWidthRestrict);
+
+        // FUDA-compatible per-peak files live beside the spectrum in fit/.
+        string fitDir;
+        const size_t slash = infile.find_last_of("/\\");
+        if (slash == string::npos) fitDir = "fit";
+        else fitDir = infile.substr(0, slash) + "/fit";
+
+        const double obsI = pipefile.obs[pipefile.dimord[1]];
+        const double obsJ = pipefile.obs[pipefile.dimord[0]];
+        if (!sliceLib2D[0].WriteFudaFitOutputs(fitDir, radiusIppm, radiusJppm, obsI, obsJ))
+          cerr << "Warning: one or more FUDA-style FIT outputs could not be written" << endl;
+
+        sliceLib2D[0].RebuildDSFromFit();
+      }
+    pipefile.WritePipe2D(sliceLib2D[0].DS, si, sj);
+  }
+  
+
+  void decon::Protocol3D(int argc,char *argv[])
+  {
+    cout << "Protocol3D" << endl;
+    //IF RUNNING WITHOUT BORING, WANT TO
+    //THEN 'SQUASH' THE 2D PROJECTION, TO
+    //SEMI-REGULARISE THINGS. THIS MIGHT
+    //BE FIXED WITH CORRECT IMPPLEMENTATION OF
+    //SQUASH
+    
+    // noiseVal =atof(argv[5]); //noise floor
+    
+    cout << "noiseVal: " << noiseVal <<endl;
+    
+    //		 int maxIter3D = 100; //atoi(argv[14]);  //iterations on 3D deconvolve
+    //		 readPeak(); //read the peak list file#
+    
+    //		 voigt1=atof(argv[14]); //0 for gaus 1 for lorentz
+    //     voigt2=atof(argv[15]); //0 for gaus 1 for lorentz
+    //     voigt3=atof(argv[16]); //0 for gaus 1 for lorentz
+    
+    pipe pipefile;
+    
+    if (parsed ==0) {
+      
+      infile=argv[4];
+      noiseVal =atof(argv[5]); //noise floor
+      sig1     =atof(argv[6]);     //standard deviation for gaussian 'distance'  //f1
+      sig2     =atof(argv[7]);     //standard deviation for gaussian 'distance'  //f2
+      sig3     =atof(argv[8]);     //standard deviation for gaussian 'distance'  //f3
+      fac      =atof(argv[9]);    //process with a wider peak, fit with a thinner
+      convVal  =atof(argv[10]); //ppm range round the centre peak to kill
+      symmode  =atoi(argv[11]); //ppm range round the centre peak to kill
+      bore     = atoi(argv[12]); //run the 3D deconvolution 1/0
+
+      //argument 13 not used for some reason. we could set that to maxIter.
+      
+      voigt1=atof(argv[14]); //0 for gaus 1 for lorentz
+      voigt2=atof(argv[15]); //0 for gaus 1 for lorentz
+      voigt3=atof(argv[16]); //0 for gaus 1 for lorentz
+      
+      lor1=atof(argv[17]);
+      lor2=atof(argv[18]);
+      lor3=atof(argv[19]);
+      maxIter3D = atoi(argv[20]);  //iterations on 3D deconvolve
+      //cout << 'intense = ' << maxIter3D << endl;
+      
+    }
+    
+     pipefile.iName = infile;
+     cout <<"Reading pipe" << endl;
+     pipefile.readHeader();
+     cout << "done pipe"<<endl;
+     // squash_window_i=atoi(argv[13]); //to be related to sig1
+     // squash_window_j=squash_window_i;
+     // squash_window_k=squash_window_i;
+      //cout << "Data file: " << infile << endl;
+
+    if(recon)
+    {
+     // Recon always uses the full 3D list and deliberately bypasses bore mode.
+     bore=0;
+     cout << peakfile << " " << infile << endl;
+     readPeakND();
+    }
+    else if(bore)
+    {
+     cout << peakfile << " " << infile << endl;
+     readPeak(); //read the 2D reference peak list
+    }
+     
+     cout << "Running with: " << endl;
+     cout << "voigt:    " << voigt1 << " " << voigt2 << " " << voigt3 << endl;
+     cout << "sigma:    " << sig1 << " " << sig2 << " " << sig3 << endl;
+     cout << "lorentz:  " << lor1 << " " << lor2 << " " << lor3 << endl;
+     cout << "fac :     " << fac <<endl;
+     cout << "conv :    " << convVal <<endl;
+     cout << "maxIter :  " << maxIter <<endl;
+     cout << "maxiter3D: " << maxIter3D <<endl;
+     // exit(2);
+     
+     if(!recon && !enhance)
+       {
+         sig1=sig1*fac;  //ordinary deconvolution starts with a wider peak
+         sig2=sig2*fac;
+         sig3=sig3*fac;
+         lor1=lor1*fac;
+         lor2=lor2*fac;
+         lor3=lor3*fac;
+       }
+     
+     
+     //read in dimensions
+     si=pipefile.size[pipefile.dimord[2]];
+     sj=pipefile.size[pipefile.dimord[1]];
+     sk=pipefile.size[pipefile.dimord[0]];
+     uimax=pipefile.xvals[pipefile.dimord[2]][pipefile.size[pipefile.dimord[2]]-1];
+     uimin=pipefile.xvals[pipefile.dimord[2]][0]; //maxfirst
+     ujmax=pipefile.xvals[pipefile.dimord[1]][pipefile.size[pipefile.dimord[1]]-1];
+     ujmin=pipefile.xvals[pipefile.dimord[1]][0]; //maxfirst
+     ukmax=pipefile.xvals[pipefile.dimord[0]][pipefile.size[pipefile.dimord[0]]-1];
+     ukmin=pipefile.xvals[pipefile.dimord[0]][0]; //maxfirst
+     
+     // CB - Relating the squash function to the FWHM
+     double di = fabs(pipefile.xvals[pipefile.dimord[2]][1] - pipefile.xvals[pipefile.dimord[2]][0]);
+     double dj = fabs(pipefile.xvals[pipefile.dimord[1]][1] - pipefile.xvals[pipefile.dimord[1]][0]);
+     double dk = fabs(pipefile.xvals[pipefile.dimord[0]][1] - pipefile.xvals[pipefile.dimord[0]][0]);
+     
+     squash_window_i=(sig1/di)*3./4.; //to be related to sig1
+     squash_window_j=(sig2/dj)*3./4.; //to be related to sig2
+     squash_window_k=(sig3/dk)*3./4.; //to be related to sig3
+     squashC=di; //excellent for big
+
+     Setup3D(); //setup instance of a 3D. do not read in data.
+     if(recon)
+       {
+         cout << "Restricted 3D reconstruction" << endl;
+         mode=3;
+         maxIter=maxIter3D;
+         iterShow=max(1, maxIter/10);
+
+         // Read the experimental volume, then replace the unrestricted DB
+         // initialisation with deltas only at the supplied full-list positions.
+         sliceLib3D[0].ReadPipe(pipefile);
+         sliceLib3D[0].peakList=peakList;
+         sliceLib3D[0].peaks=peaks;
+         sliceLib3D[0].InitBlurPeakRestricted();
+
+         // Peak widths are already the requested final widths: no fac expansion,
+         // no squash/cull, and exactly one optimisation pass.
+         DoRun();
+       }
+     else if(bore) //use 2D peak list
+       {
+
+	 mode=1; //calc in 1D
+	 maxIter = 10000; //hard coded.
+	 iterShow=maxIter/10;
+	 cout << "maxIter :  " << maxIter <<endl;
+	 sliceLib3D[0].BlankDB();
+	 sliceLib3D[0].squash_window_i = (4./3.)*sliceLib3D[0].squash_window_i;
+	 // squash_window_i = sliceLib3D[0].squash_window_i;
+	 sliceLib3D[0].squash_window_j = (4./3.)*sliceLib3D[0].squash_window_j;
+	 sliceLib3D[0].squash_window_k = (4./3.)*sliceLib3D[0].squash_window_k;
+	 Setup1Dfrom3D(pipefile);  //setup 1D slices from 3D
+
+         if(enhance)
+           {
+             // Bore Enhance deliberately has two dimensional passes: first
+             // optimise the peak-list-restricted 1D traces, then transfer
+             // those sources to the full 3D DB and optimise once in 3D.
+             cout << "Enhance bore: 1D DoRun" << endl;
+             DoRun();
+
+             mode=3;
+             sliceLib3D[0].BlankDBfull();
+             for(int p=0;p<peaks;++p)
+               sliceLib3D[0].SetBlur(p,sliceLib1D[p].DB);
+             SetPeaks();
+             maxIter=maxIter3D;
+             iterShow=max(1, maxIter/10);
+             cout << "Enhance bore: 3D DoRun" << endl;
+             DoRun();
+
+             sliceLib3D[0].SPARSE=false;
+             pipefile.WritePipe3D(sliceLib3D[0].DB,si,sj,sk);
+             return;
+           }
+	 
+	 /*
+	 //considering doing this one 1D at a time.
+	 omp_set_num_threads(8);
+
+#pragma omp parallel
+	 {
+	   int thread_num = omp_get_thread_num();
+	   
+#pragma omp for
+	   for(int p=0;p<peaks;++p) //for each peak, sync with 3D library
+	     {
+	       //sliceLib1D[p]
+	       //correlate("0");
+	       //cout << "First run of Unidec" << endl;
+	       DoRun(p); //perform run and cull
+	       
+	       //cout << "Squash function" << endl;
+	       Squash(p); //done in 1D
+	       //cout << "Second run of Unidec" << endl;
+	       DoRun(p); //perform run and cull
+	     }
+
+	   cout << "squash1 " << CountElements() << endl;
+	   int cnt=0;
+	   for(int p=0;p<peaks;++p) //for each peak, sync with 3D library
+	     cnt+=sliceLib1D[p].CountElements();
+	   cout << cnt << endl;
+
+	   exit(100);
+
+	   
+	   cout << "Contracting peak shape and re-running for comparison..."<< endl;
+	   sig1=sig1/fac;  //modify peakwidth for deconvolution
+	   sig2=sig2/fac;  //modify peakwidth for deconvolution
+	   sig3=sig3/fac;  //modify peakwidth for deconvolution
+	   
+	   lor1=lor1/fac;
+	   lor2=lor2/fac;
+	   lor3=lor3/fac;
+	   
+	   SetPeaks(); //recalculate peakshape with reduced width
+#pragma omp for
+	   for(int p=0;p<peaks;++p) //for each peak, sync with 3D library
+	     DoRun(p);
+	 }
+
+	 cout << "squash1 " << CountElements() << endl;
+	 exit(100);
+	 */
+	 //correlate("0");
+	 
+	 cout << "First run of Unidec" << endl;
+	 DoRun(); //perform run and cull
+	 
+	 cout << "Squash function" << endl;
+	 Squash(); //done in 1D
+	 cout << "Second run of Unidec" << endl;
+	 DoRun(); //perform run and cull
+	 
+	 cout << "Contracting peak shape and re-running for comparison..."<< endl;
+	 sig1=sig1/fac;  //modify peakwidth for deconvolution
+	 sig2=sig2/fac;  //modify peakwidth for deconvolution
+	 sig3=sig3/fac;  //modify peakwidth for deconvolution
+	 
+	 lor1=lor1/fac;
+	 lor2=lor2/fac;
+	 lor3=lor3/fac;
+	 
+	 SetPeaks(); //recalculate peakshape with reduced width
+	 DoRun();
+	 
+	 //correlate("1");
+	 
+	 // Switch back to 3d and reconvolve in 3D
+	 mode=3;     //Now calculate in 3D
+	 
+	 sliceLib3D[0].BlankDBfull();  //initialise 3D deltas from 1D
+	 for(int p=0;p<peaks;++p) //for each peak
+	   sliceLib3D[0].SetBlur(p,sliceLib1D[p].DB); //set blur matrix
+	 SetPeaks(); //calculate 3D peakshape
+	 
+	 maxIter=maxIter3D; //set maxiterations to user specified value
+	 iterShow=1;
+	 if(maxIter!=0) //if non zero, run
+	   {
+	     // Same protocol as above, but on 3D
+	     cout << "maxIter: " << maxIter << endl;
+	     DoRun();      //run unidec
+	     //  correlate("squash1");
+	     sliceLib3D[0].squash_window_i = 1;//(3./3.)*sliceLib3D[0].squash_window_i;
+	     sliceLib3D[0].squash_window_j = (3./3.)*sliceLib3D[0].squash_window_j;
+	     sliceLib3D[0].squash_window_k = (3./3.)*sliceLib3D[0].squash_window_k;
+	     
+	     Squash();
+	     cout << "squash1 " << CountElements() << endl;
+	     DoRun();
+	     Cull();   //done in 1D
+	   }
+	 
+       }
+     else //if not using 3D peaklist
+       {
+	 //inst.ReadPipe(pipefile);     //do we really need the whole thing?
+	 sliceLib3D[0].ReadPipe(pipefile); //read entire spectrum.
+
+	 maxIter=maxIter3D;
+	 mode=3;
+	 sliceLib3D[0].InitBlur();
+
+         if(enhance)
+           {
+             cout << "Enhance: single 3D DoRun using raw peak widths" << endl;
+             DoRun();
+             sliceLib3D[0].SPARSE=false;
+             pipefile.WritePipe3D(sliceLib3D[0].DB,si,sj,sk);
+             return;
+           }
+
+	 //Squash();
+	   cout << "A" << endl;
+	 // Same protocol as boring, but straight to 3D
+	 DoRun(); //perform run and cull
+	 Squash(); //done in 1D
+	 DoRun(); //perform run and cull
+	 Cull(0.5);
+	 
+	 cout << "Contracting peak shape and re-convolving..."<< endl;
+	 sig1=sig1/fac;  //modify peakwidth for deconvolution
+	 sig2=sig2/fac;  //modify peakwidth for deconvolution
+	 sig3=sig3/fac;  //modify peakwidth for deconvolution
+	 
+	 lor1=lor1/fac;
+	 lor2=lor2/fac;
+	 lor3=lor3/fac;
+	 
+	 cout << sig1 << " " << sig2 << " " << sig3 << endl;
+	 SetPeaks(); //recalculate peakshape with reduced width
+	 cout << "Contracting peak shape and re-convolving..."<< endl;
+	 calcspec();
+	 
+       }
+     
+     //PrintSpec(); //print projections.
+     //calcspec();
+     sliceLib3D[0].SPARSE=false; //force sparse to be false...
+     sliceLib3D[0].CalcSpec();   //re-calculate spectrum after final cull (avoid sparse mode).
+     pipefile.WritePipe3D(sliceLib3D[0].DS,si,sj,sk);
+     cout << "cross peaks above theshold: " << CountElements() << endl;
+     correlate(infile+".3D.list"); //work out which NOEs are allowed through symmetry
+     GetChi2(); //calculate chi2
+  }
+  
+  
+  
+
+  void decon::Protocol4D(int argc,char *argv[])
+  {
+    cout << "Protocol4D" <<endl;
+
+    pipe pipefile;
+
+ //read the peak list file
+
+    if (parsed == 0) {
+      noiseVal =atof(argv[5]); //noise floor
+      sig1     =atof(argv[6]);     //standard deviation for gaussian 'distance'  //f1
+      infile   =argv[4];
+    }
+
+    pipefile.iName=infile;
+    pipefile.readHeader();
+    readPeak();
+
+    // cout << parsed << endl;
+    // exit(100);
+    if(sig1!=0.0)
+      {if (parsed==0) {
+        	sig2     =atof(argv[7]);     //standard deviation for gaussian 'distance'  //f2
+        	sig3     =atof(argv[8]);     //standard deviation for gaussian 'distance'  //f3
+        	sig4     =atof(argv[9]);     //standard deviation for gaussian 'distance'  //f3
+        	fac      =atof(argv[10]);    //process with a wider peak, fit with a thinner
+        	squash   =atof(argv[11]); //ppm range round the centre peak to kill
+        	symmode  =atoi(argv[12]); //ppm range round the centre peak to kill
+        	symmode=1;
+
+        	bore     = atoi(argv[13]); //run the 3D deconvolution 1/0
+
+        	squash_window_i=atoi(argv[14]); //to be related to sig1
+          voigt1=atof(argv[15]); //0 for gaus 1 for lorentz
+          voigt2=atof(argv[16]); //0 for gaus 1 for lorentz
+          voigt3=atof(argv[17]); //0 for gaus 1 for lorentz
+          voigt4=atof(argv[18]); //0 for gaus 1 for lorentz
+
+          lor1=atof(argv[19]);
+          lor2=atof(argv[20]);
+          lor3=atof(argv[21]);
+          lor4=atof(argv[22]);
+        }
+
+      	squash_window_j=squash_window_i;
+      	squash_window_k=squash_window_i;
+      	//squash_window_l=squash_window_l;
+
+      	maxIter3D = 10000; //atoi(argv[15]);  //iterations on 3D deconvolve
+
+
+
+      }
+    else
+      {
+       pipefile.peakList=peakList;
+    	 pipefile.peaks=peaks;
+
+    	 cout << "Extracting only " << endl;
+
+    	 pipefile.extract4D();
+    	 pipefile.diag4D();  //calculate diagonal
+    	 pipefile.optPeak4D(); //optimise 4D peaklist
+    	 //pipefile.project4D(); //calculate projections
+    	 exit(100);
+      }
+
+    //order from dimorder
+    si=pipefile.size[pipefile.dimord[3]];  //2
+    sj=pipefile.size[pipefile.dimord[2]];  //1
+    sk=pipefile.size[pipefile.dimord[1]];  //3
+    sl=pipefile.size[pipefile.dimord[0]];  //4
+    uimin=pipefile.xvals[pipefile.dimord[3]][pipefile.size[pipefile.dimord[3]]-1];
+    uimax=pipefile.xvals[pipefile.dimord[3]][0]; //maxfirst
+    ujmin=pipefile.xvals[pipefile.dimord[2]][pipefile.size[pipefile.dimord[2]]-1];
+    ujmax=pipefile.xvals[pipefile.dimord[2]][0]; //maxfirst
+    ukmin=pipefile.xvals[pipefile.dimord[1]][pipefile.size[pipefile.dimord[1]]-1];
+    ukmax=pipefile.xvals[pipefile.dimord[1]][0]; //maxfirst
+    ulmin=pipefile.xvals[pipefile.dimord[0]][pipefile.size[pipefile.dimord[0]]-1];
+    ulmax=pipefile.xvals[pipefile.dimord[0]][0]; //maxfirst
+
+    cout << " x(i) dimension: " << uimin << " " << uimax << " " << si << "sig " << sig1 << endl; //carbon
+    cout << " y(j) dimension: " << ujmin << " " << ujmax << " " << sj << "sig " << sig2 << endl; //proton
+    cout << " z(k) dimension: " << ukmin << " " << ukmax << " " << sk << "sig " << sig3 << endl; //carbon
+    cout << " a(l) dimension: " << ulmin << " " << ulmax << " " << sl << "sig " << sig4 << endl; //proton
+
+    //extra params:
+      //voigt1=atof(argv[15]); //0 for gaus 1 for lorentz
+      // voigt2=atof(argv[16]); //0 for gaus 1 for lorentz
+      // voigt3=atof(argv[17]); //0 for gaus 1 for lorentz
+      // voigt4=atof(argv[18]); //0 for gaus 1 for lorentz
+
+    maxIter=1000;
+
+
+    // squashH=sig1*squash; //excellent for big
+    // squashC=sig2*squash; //excellent for big
+
+    sig1=sig1*fac;  //modify peakwidth for deconvolution
+    sig2=sig2*fac;  //modify peakwidth for deconvolution
+    sig3=sig3*fac;  //modify peakwidth for deconvolution
+    sig4=sig4*fac;  //modify peakwidth for deconvolution
+
+  	lor1=lor1*fac;
+  	lor2=lor2*fac;
+  	lor3=lor3*fac;
+    lor4=lor4*fac;
+    /*************************************************/
+
+    //squashC=0.15; //excellent for big
+    //squashH=0.015; //excellent for big
+
+
+
+    //squashC=0.5;
+    //squashH=0.1;
+
+
+    Setup2Dfrom4D();  //read in .proj files, initialise Blur
+    //correlate("1");
+    //cout << "done correl1" << endl;
+
+    /************************************************************/
+    //DECONVOLUTION: will run until convergence criteria is met
+    DoRun(); //perform run and cull
+    //correlate("2");
+
+    Squash();
+
+    cout << "cross peaks above theshold: " << CountElements() << endl;
+
+    DoRun(); //perform run and cull
+    //Squash();
+
+    //THREE
+    //Squash();
+
+    //calcspec2D();   //calc spectra
+    //PrintSpec2D();  //print files
+    maxIter=20;
+    Setup4D();
+    if(maxIter3D!=0) //do deconvolution in high dimensions
+      {
+        SetPeaks();
+        DoRun(); //perform run and cull
+      }
+
+    cout << "Contracting peak shape and re-runing..."<< endl;
+    sig1=sig1/fac;  //modify peakwidth for deconvolution
+    sig2=sig2/fac;  //modify peakwidth for deconvolution
+    sig3=sig3/fac;  //modify peakwidth for deconvolution
+    sig4=sig4/fac;  //modify peakwidth for deconvolution
+
+  	lor1=lor1/fac;
+  	lor2=lor2/fac;
+  	lor3=lor3/fac;
+  	lor4=lor4/fac;
+
+    SetPeaks(); //recalculate peakshape with reduced width
+    DoRun();
+    Cull();
+
+    calcspec4D();   //calc spectra
+    //PrintSpec();  //print files
+
+
+    //calcspec2D();   //calc spectra
+    mode=2;
+    PrintSpec();  //print files
+    //mode=4;
+
+    // pipefile.WritePipe4D(sliceLib4D[0].DS,si,sj,sk);
+    cout << "cross peaks above theshold: " << CountElements() << endl;
+    correlate(infile+".4D.list"); //work out which NOEs are allowed through symmetry
+    GetChi2(); //calculate chi2
+
+  }
+
+
+
+#endif
+
+// Protocol3P: physical 3D NMRPipe data containing two spectral dimensions and
+// one real/pseudo axis.  Recon-only: peak positions come from the supplied 2D
+// reference list; one 2D GLORE shape is shared across all pseudo slices while
+// each slice has an independent fitted intensity.
+void decon::Protocol3P(int argc, char *argv[])
+{
+  cout << "Protocol3P (2 spectral + 1 pseudo axis)" << endl;
+  if (!recon) { cerr << "Protocol3P currently supports recon mode only" << endl; return; }
+  if (!FIT) { cerr << "Protocol3P requires FIT=1" << endl; return; }
+
+  pipe pipefile; pipefile.iName=infile; pipefile.readHeader();
+  if (pipefile.dim != 3) { cerr << "Protocol3P requires a physical 3D NMRPipe file" << endl; return; }
+
+  // Current canonical decon 3P files place the real axis in the slow NMRPipe
+  // dimension.  Refuse ambiguous layouts rather than treating a real axis as
+  // a spectral frequency.  The GUI writes pseudo3D only for this datatype.
+  const string zlabel = pipefile.labels.size() >= 3 ? pipefile.labels[2] : "pseudo";
+  cout << "3P axes: " << pipefile.labels[1] << " / " << pipefile.labels[0]
+       << " spectral; " << zlabel << " pseudo" << endl;
+
+  // Read the supplied reference list as a 2D list even though the data file is
+  // physically 3D.  This deliberately fixes only the two spectral positions.
+  const int savedDim=dim; dim=2; readPeakND(); dim=savedDim;
+
+  // Load through the established 3D reader.  Its internal ordering is
+  // [slow i, middle j, fast k].
+  si=pipefile.size[pipefile.dimord[2]]; // pseudo slices
+  sj=pipefile.size[pipefile.dimord[1]]; // spectral F1
+  sk=pipefile.size[pipefile.dimord[0]]; // spectral F2
+  uimin=pipefile.xvals[pipefile.dimord[2]][0]; uimax=pipefile.xvals[pipefile.dimord[2]][si-1];
+  ujmin=pipefile.xvals[pipefile.dimord[1]][0]; ujmax=pipefile.xvals[pipefile.dimord[1]][sj-1];
+  ukmin=pipefile.xvals[pipefile.dimord[0]][0]; ukmax=pipefile.xvals[pipefile.dimord[0]][sk-1];
+  Setup3D();
+  sliceLib3D[0].ReadPipe(pipefile);
+
+  const int nslices=si, planeI=sj, planeJ=sk, planeSize=planeI*planeJ;
+  std::vector<double> stack(nslices*planeSize,0.0), projection(planeSize,0.0), zvals(nslices,0.0);
+  for(int z=0;z<nslices;++z) {
+    zvals[z]=sliceLib3D[0].ivals[z];
+    for(int i=0;i<planeI;++i) for(int j=0;j<planeJ;++j) {
+      const int src=z + i*nslices + j*nslices*planeI;
+      const int dst=i + j*planeI;
+      const double v=sliceLib3D[0].DI[src];
+      stack[z*planeSize+dst]=v; projection[dst]+=v;
+    }
+  }
+
+  // Construct a lightweight 2D fitting surface from the summed projection.
+  // The normalized 2D FIT machinery then determines the common shape.
+  sliceLib2D.clear(); sliceLib2D.emplace_back(); slice2D& fit=sliceLib2D.back();
+  fit.si=planeI; fit.sj=planeJ; fit.size=planeSize;
+  fit.imin=ujmin; fit.imax=ujmax; fit.jmin=ukmin; fit.jmax=ukmax;
+  fit.sig1=sig1; fit.sig2=sig2; fit.lor1=lor1; fit.lor2=lor2;
+  fit.voigt1=voigt1; fit.voigt2=voigt2; fit.noiseVal=noiseVal;
+  fit.peakList=peakList; fit.peaks=peaks;
+#ifdef DOUBLE2D
+  fit.ivals=new double[planeI]; fit.jvals=new double[planeJ]; fit.DI=new double[planeSize]; fit.DB=new double[planeSize]; fit.DS=new double[planeSize];
+#else
+  fit.ivals=new float[planeI]; fit.jvals=new float[planeJ]; fit.DI=new float[planeSize]; fit.DB=new float[planeSize]; fit.DS=new float[planeSize];
+#endif
+  fit.maxInt=0.0;
+  for(int i=0;i<planeI;++i) fit.ivals[i]=pipefile.xvals[pipefile.dimord[1]][i];
+  for(int j=0;j<planeJ;++j) fit.jvals[j]=pipefile.xvals[pipefile.dimord[0]][j];
+  for(int q=0;q<planeSize;++q) { fit.DI[q]=projection[q]; fit.DB[q]=projection[q]; fit.DS[q]=0; fit.maxInt=std::max(fit.maxInt,std::fabs(projection[q])); }
+
+  double radI=FitF1, radJ=FitF2;
+  if(!FitRadFix) {
+    double fr=FitRad>0.0?FitRad:5.0;
+    const double target=(fit.maxInt>0.0)?(noiseVal/fr)/fit.maxInt:1e-3;
+    radI=SolveRadiusForThreshold1D(target,sig1,lor1,voigt1);
+    radJ=SolveRadiusForThreshold1D(target,sig2,lor2,voigt2);
+  }
+  cout << "3P FIT radii F1/F2 (ppm): " << radI << " " << radJ << endl;
+  fit.FitPeaks2D(radI,radJ,"fitted_params.out","fitted.out",50,0.0,true,FitWidthRestrict);
+
+  string fitDir; const size_t slash=infile.find_last_of("/\\");
+  fitDir=(slash==string::npos)?"fit":infile.substr(0,slash)+"/fit";
+  std::vector<std::vector<double> > ints, esds;
+  const double obsI=pipefile.obs[pipefile.dimord[1]], obsJ=pipefile.obs[pipefile.dimord[0]];
+  if(!fit.FitPseudo3DIntensities(stack,nslices,radI,radJ,ints,esds,fitDir,zvals,zlabel,obsI,obsJ))
+    cerr << "Protocol3P: failed to write pseudo-dimensional FIT outputs" << endl;
+
+  cout << "Protocol3P fitted " << fit.fittedPeaks2D.size() << " peaks across " << nslices << " slices" << endl;
+}
+
+
+// Protocol2PFit: physical 2D NMRPipe data containing one spectral dimension
+// (fast axis) and one real/pseudo axis (slow axis).  Peak positions are fixed
+// by the supplied Full 1D list; amplitudes are fitted independently in every
+// pseudo slice using the configured F1 extraction radius.  This is deliberately
+// separate from Protocol2D so established 2D decon/recon behaviour is unchanged.
+void decon::Protocol2PFit(int argc, char *argv[])
+{
+  cout << "Protocol2PFit (1 spectral + 1 pseudo axis)" << endl;
+  if (!recon) { cerr << "Protocol2PFit supports Recon/FIT mode only" << endl; return; }
+  if (!FIT) { cerr << "Protocol2PFit requires FIT=1" << endl; return; }
+
+  pipe pipefile; pipefile.iName=infile; pipefile.readHeader();
+  // Some pseudo2D NMRPipe files report FDDIMCOUNT=3 because a singleton Z
+  // storage axis is retained in the header.  Do not use pipefile.dim as the
+  // topology test here: pseudo2DFit is an explicit protocol selected by the
+  // GUI, and the two active axes are given by dimord[0:2].
+  const int pseudoAxis=pipefile.dimord[1], specAxis=pipefile.dimord[0];
+  if (pipefile.size[pseudoAxis] <= 1 || pipefile.size[specAxis] <= 1) {
+    cerr << "Protocol2PFit requires two active physical axes (pseudo + spectral)" << endl;
+    return;
+  }
+
+  const int savedDim=dim; dim=1; readPeakND(); dim=savedDim;
+  if (peaks <= 0) { cerr << "Protocol2PFit: no restrained 1D peaks were read" << endl; return; }
+
+  const int nslices=pipefile.size[pseudoAxis], npts=pipefile.size[specAxis];
+  const string zlabel=pipefile.labels.size() >= 2 ? pipefile.labels[1] : "pseudo";
+  const double obs=pipefile.obs[specAxis];
+  double radius=FitF1;
+  if (!FitRadFix) {
+    const double fr=FitRad>0.0?FitRad:5.0;
+    const double target=1.0/fr;
+    radius=SolveRadiusForThreshold1D(target,sig1,lor1,voigt1);
+  }
+  if (!(radius>0.0)) radius=FitF1>0.0?FitF1:0.1;
+  cout << "2P FIT radius F1 (ppm): " << radius << endl;
+
+  vector<double> x(npts), z(nslices), data(nslices*npts,0.0);
+  for(int j=0;j<npts;++j) x[j]=pipefile.xvals[specAxis][j];
+  for(int i=0;i<nslices;++i) z[i]=pipefile.xvals[pseudoAxis][i];
+  for(int i=0;i<nslices;++i) for(int j=0;j<npts;++j) {
+    int ii=i, jj=j; data[i*npts+j]=pipefile.GetVal2D(ii,jj);
+  }
+
+  // Group peaks whose extraction windows overlap.  Each group is solved by
+  // linear least squares per pseudo slice.  The measured value nearest each
+  // peak is the natural initial amplitude; LS then performs the simultaneous
+  // fit, resolving overlap while keeping the supplied ppm positions fixed.
+  vector<int> order(peaks); for(int p=0;p<peaks;++p) order[p]=p;
+  sort(order.begin(),order.end(),[&](int a,int b){return peakList[a].x < peakList[b].x;});
+  vector<vector<int> > groups;
+  for(int oi=0;oi<peaks;++oi) {
+    int p=order[oi];
+    if(groups.empty() || fabs(peakList[p].x-peakList[groups.back().back()].x) > 2.0*radius) groups.push_back(vector<int>());
+    groups.back().push_back(p);
+  }
+  vector<int> peakGroup(peaks,-1);
+  for(size_t g=0; g<groups.size(); ++g) for(int p:groups[g]) peakGroup[p]=static_cast<int>(g);
+  cout << "Protocol2PFit overlap groups: " << groups.size() << endl;
+  for(size_t g=0; g<groups.size(); ++g) {
+    cout << "  Group " << (g+1) << ":";
+    for(int p:groups[g]) cout << " " << (peakList[p].name.empty()?to_string(p+1):peakList[p].name);
+    cout << endl;
+  }
+  vector<vector<double> > intens(peaks,vector<double>(nslices,0.0)), esd(peaks,vector<double>(nslices,0.0));
+  // Pseudo2D independent quadrature test: the absorptive and dispersive
+  // components have separate amplitudes and linewidths, but share one Gaussian/Lorentzian mixing parameter.
+  vector<vector<double> > dispIntens(peaks,vector<double>(nslices,0.0));
+  // One signed dispersive/absorptive ratio per resonance, shared by every pseudo slice.
+  vector<double> dispRatio(peaks,0.0);
+  vector<double> fitCenter(peaks,0.0), fitScale(peaks,1.0);
+  vector<double> dispScale(peaks,1.0), sharedVoigt(peaks,voigt1);
+  for(int p=0;p<peaks;++p) fitCenter[p]=peakList[p].x;
+
+  auto solve=[&](vector<double> a, vector<double> b, vector<double>& sol, int n)->bool {
+    sol.assign(n,0.0);
+    for(int k=0;k<n;++k){
+      int piv=k; for(int r=k+1;r<n;++r) if(fabs(a[r*n+k])>fabs(a[piv*n+k])) piv=r;
+      if(fabs(a[piv*n+k])<1e-20) return false;
+      if(piv!=k){for(int c=k;c<n;++c) swap(a[k*n+c],a[piv*n+c]); swap(b[k],b[piv]);}
+      double d=a[k*n+k]; for(int c=k;c<n;++c)a[k*n+c]/=d; b[k]/=d;
+      for(int r=0;r<n;++r) if(r!=k){double f=a[r*n+k]; for(int c=k;c<n;++c)a[r*n+c]-=f*a[k*n+c]; b[r]-=f*b[k];}
+    }
+    sol=b; return true;
+  };
+
+  // Pseudo2D is deliberately treated differently from sparse 2D fitting.
+  // 'radius' selects the data/overlap region only; it is NOT a linewidth.
+  // Each resonance starts at the physical sig1/lor1 width and is allowed to
+  // scale those two widths together.  A small multi-start/coordinate search
+  // prevents a broad absorptive solution from hiding a dispersive component.
+  for(const auto& grp:groups) {
+    vector<int> pix;
+    for(int j=0;j<npts;++j){ for(int p:grp) if(fabs(x[j]-fitCenter[p])<=radius){pix.push_back(j);break;} }
+    const int np=grp.size(); if(pix.empty()) continue;
+    const double dx=(npts>1)?fabs(x[1]-x[0]):1e-6;
+    const double baseWidth=max(max(fabs((double)sig1),fabs((double)lor1)),dx);
+    const double minScale=max(0.20,dx/baseWidth); // never narrower than one digital point
+    const double maxScale=max(minScale,2.0);      // broad enough to recover a genuinely wider line
+    const double centerLim=min(0.25*radius,0.75*baseWidth);
+
+    vector<double> centers(np), scales(np,1.0), ph(np,0.0), gmix(np,voigt1);
+    for(int a=0;a<np;++a) centers[a]=peakList[grp[a]].x;
+
+    // Evaluate a supplied basis matrix [peak][pixel].  Amplitudes are always
+    // solved exactly per pseudo slice.  This is the expensive linear part, so
+    // phase refinement below reuses a cached absorptive/dispersive basis.
+    auto fitBasis=[&](const vector<vector<double> >& basis, bool store)->double {
+      vector<double> ata(np*np,0.0);
+      for(size_t jj=0;jj<pix.size();++jj) for(int a=0;a<np;++a)
+        for(int b=0;b<np;++b) ata[a*np+b]+=basis[a][jj]*basis[b][jj];
+      vector<double> invdiag(np,0.0);
+      if(store) for(int q=0;q<np;++q){vector<double> rhs(np,0.0),ss;rhs[q]=1.0;if(solve(ata,rhs,ss,np))invdiag[q]=max(0.0,ss[q]);}
+      double total=0.0;
+      for(int zz=0;zz<nslices;++zz){
+        vector<double> aty(np,0.0), coeff;
+        for(size_t jj=0;jj<pix.size();++jj) for(int a=0;a<np;++a)
+          aty[a]+=basis[a][jj]*data[zz*npts+pix[jj]];
+        if(!solve(ata,aty,coeff,np)) coeff.assign(np,0.0);
+        double sse=0.0;
+        for(size_t jj=0;jj<pix.size();++jj){
+          double calc=0.0; for(int a=0;a<np;++a) calc+=coeff[a]*basis[a][jj];
+          const double r=data[zz*npts+pix[jj]]-calc; sse+=r*r;
+        }
+        total+=sse;
+        if(store){
+          const double var=sse/max(1,(int)pix.size()-np);
+          for(int a=0;a<np;++a){const int p=grp[a];intens[p][zz]=coeff[a];esd[p][zz]=sqrt(max(0.0,var*invdiag[a]));}
+        }
+      }
+      return total;
+    };
+
+    auto makeBasis=[&](const vector<double>& cc,const vector<double>& ss,const vector<double>& pp)->vector<vector<double> > {
+      vector<vector<double> > b(np,vector<double>(pix.size(),0.0));
+      for(int a=0;a<np;++a) for(size_t jj=0;jj<pix.size();++jj)
+        b[a][jj]=PeakFraction1DPhased(x[pix[jj]]-cc[a],sig1*ss[a],lor1*ss[a],gmix[a],pp[a]);
+      return b;
+    };
+
+    // Stage 1: zero-phase shape seed.  Try narrower starts explicitly, then
+    // coordinate-refine width and a small centre offset.  The extraction radius
+    // never enters the linewidth except as a conservative centre-motion bound.
+    vector<double> seedVals={0.50,0.75,1.00,1.25};
+    double bestSSE=fitBasis(makeBasis(centers,scales,ph),false);
+    const double inputSSE=bestSSE;
+    for(int a=0;a<np;++a){
+      double best=scales[a];
+      for(double sv:seedVals){
+        sv=max(minScale,min(maxScale,sv)); vector<double> ts=scales; ts[a]=sv;
+        double v=fitBasis(makeBasis(centers,ts,ph),false); if(v<bestSSE){bestSSE=v;best=sv;}
+      }
+      scales[a]=best;
+    }
+    for(int sweep=0;sweep<2;++sweep){
+      for(int a=0;a<np;++a){
+        // Golden search width scale.
+        const double gr=0.6180339887498948482; double lo=minScale,hi=maxScale;
+        double c=hi-gr*(hi-lo),d=lo+gr*(hi-lo); vector<double> ts=scales;
+        ts[a]=c; double fc=fitBasis(makeBasis(centers,ts,ph),false); ts[a]=d; double fd=fitBasis(makeBasis(centers,ts,ph),false);
+        for(int it=0;it<10;++it){if(fc<fd){hi=d;d=c;fd=fc;c=hi-gr*(hi-lo);ts=scales;ts[a]=c;fc=fitBasis(makeBasis(centers,ts,ph),false);}else{lo=c;c=d;fc=fd;d=lo+gr*(hi-lo);ts=scales;ts[a]=d;fd=fitBasis(makeBasis(centers,ts,ph),false);}}
+        const double cand=(fc<fd)?c:d, val=min(fc,fd); if(val<bestSSE){scales[a]=cand;bestSSE=val;}
+        // Small centre refinement; peak-list positions remain strongly restrained.
+        if(centerLim>0.0){double clo=peakList[grp[a]].x-centerLim,chi=peakList[grp[a]].x+centerLim;double cc=chi-gr*(chi-clo),dd=clo+gr*(chi-clo);vector<double> tc=centers;tc[a]=cc;fc=fitBasis(makeBasis(tc,scales,ph),false);tc[a]=dd;fd=fitBasis(makeBasis(tc,scales,ph),false);for(int it=0;it<8;++it){if(fc<fd){chi=dd;dd=cc;fd=fc;cc=chi-gr*(chi-clo);tc=centers;tc[a]=cc;fc=fitBasis(makeBasis(tc,scales,ph),false);}else{clo=cc;cc=dd;fc=fd;dd=clo+gr*(chi-clo);tc=centers;tc[a]=dd;fd=fitBasis(makeBasis(tc,scales,ph),false);}}const double cv=(fc<fd)?cc:dd,valc=min(fc,fd);if(valc<bestSSE){centers[a]=cv;bestSSE=valc;}}
+      }
+    }
+    const double zeroShapeSSE=bestSSE;
+
+    // Store the completed zero-phase absorptive fit.  This is stage 1 and is
+    // deliberately identical to the successful pseudo2D linewidth fit.
+    fitBasis(makeBasis(centers,scales,ph),true);
+    vector<vector<double> > fixedAbs(np,vector<double>(nslices,0.0));
+    for(int a=0;a<np;++a) for(int zz=0;zz<nslices;++zz) fixedAbs[a][zz]=intens[grp[a]][zz];
+
+    // Final pseudo2D distortion model:
+    //   S_p(x,z) = I_p(z) * [ A_p(x; wA, g) + r_p D_p(x; wD, g) ]
+    // where A is the absorptive pseudo-Voigt, D is its analytic dispersive
+    // counterpart, g is ONE Gaussian/Lorentzian mixing parameter shared by
+    // both components, wA and wD are independent linewidths, and r_p is one
+    // signed D/A distortion ratio shared across every pseudo slice.  Because
+    // wD may differ from wA, atan(r_p) is an apparent phase angle rather than
+    // a literal rotation of one complex line shape.
+    //
+    // Stage 2 freezes the complete absorptive solution and adds D, fitting the
+    // shared signed ratio and the independent dispersive linewidth.
+    vector<double> dscale(np,1.0);
+    const double dMinScale=minScale, dMaxScale=max(6.0,minScale);
+    auto makeDisp=[&](const vector<double>& ds)->vector<vector<double> >{
+      vector<vector<double> > b(np,vector<double>(pix.size(),0.0));
+      for(int a=0;a<np;++a) for(size_t jj=0;jj<pix.size();++jj)
+        b[a][jj]=PeakDispersion1D(x[pix[jj]]-centers[a],sig1*ds[a],lor1*ds[a],gmix[a]);
+      return b;
+    };
+    // Absorption is frozen throughout stage 2, so cache its spectral basis
+    // once rather than rebuilding Gaussian/Lorentzian values during every
+    // dispersive-linewidth trial.
+    vector<vector<double> > fixedAbsShape(np,vector<double>(pix.size(),0.0));
+    for(int a=0;a<np;++a) for(size_t jj=0;jj<pix.size();++jj)
+      fixedAbsShape[a][jj]=PeakFraction1D(x[pix[jj]]-centers[a],sig1*scales[a],lor1*scales[a],gmix[a]);
+
+    // Fit one signed D/A ratio per resonance across ALL pseudo slices.  With
+    // absorption frozen, the dispersive contribution in slice z is
+    //     A[p,z] * ratio[p] * D[p,x]
+    // so the ratio is a resonance property rather than 32 independent values.
+    auto fitAddedDisp=[&](const vector<vector<double> >& db,bool store)->double{
+      vector<double> ata(np*np,0.0), aty(np,0.0);
+      for(int zz=0;zz<nslices;++zz) for(size_t jj=0;jj<pix.size();++jj){
+        double residual=data[zz*npts+pix[jj]];
+        for(int a=0;a<np;++a)
+          residual-=fixedAbs[a][zz]*fixedAbsShape[a][jj];
+        for(int a=0;a<np;++a){
+          const double ca=fixedAbs[a][zz]*db[a][jj];
+          aty[a]+=ca*residual;
+          for(int b=0;b<np;++b) ata[a*np+b]+=ca*(fixedAbs[b][zz]*db[b][jj]);
+        }
+      }
+      vector<double> ratio;
+      if(!solve(ata,aty,ratio,np)) ratio.assign(np,0.0);
+      double total=0.0;
+      for(int zz=0;zz<nslices;++zz) for(size_t jj=0;jj<pix.size();++jj){
+        double calc=0.0;
+        for(int a=0;a<np;++a){
+          calc+=fixedAbs[a][zz]*fixedAbsShape[a][jj];
+          calc+=fixedAbs[a][zz]*ratio[a]*db[a][jj];
+        }
+        const double r=data[zz*npts+pix[jj]]-calc; total+=r*r;
+      }
+      if(store) for(int a=0;a<np;++a){
+        const int p=grp[a]; dispRatio[p]=ratio[a];
+        for(int zz=0;zz<nslices;++zz) dispIntens[p][zz]=ratio[a]*fixedAbs[a][zz];
+      }
+      return total;
+    };
+
+    double addDispSSE=zeroShapeSSE;
+    if(FitPhase){
+      // Coordinate optimisation of dispersive linewidth while the absorption component
+      // is completely fixed.  The Gaussian/Lorentzian mixture is shared with absorption.
+      addDispSSE=fitAddedDisp(makeDisp(dscale),false);
+      const double gr=0.6180339887498948482;
+      for(int sweep=0;sweep<3;++sweep) for(int a=0;a<np;++a){
+        double lo=dMinScale,hi=dMaxScale,c=hi-gr*(hi-lo),d=lo+gr*(hi-lo);
+        vector<double> ts=dscale;ts[a]=c;double fc=fitAddedDisp(makeDisp(ts),false);ts[a]=d;double fd=fitAddedDisp(makeDisp(ts),false);
+        for(int it=0;it<12;++it){if(fc<fd){hi=d;d=c;fd=fc;c=hi-gr*(hi-lo);ts=dscale;ts[a]=c;fc=fitAddedDisp(makeDisp(ts),false);}else{lo=c;c=d;fc=fd;d=lo+gr*(hi-lo);ts=dscale;ts[a]=d;fd=fitAddedDisp(makeDisp(ts),false);}}
+        double cand=(fc<fd)?c:d,val=min(fc,fd);if(val<addDispSSE){dscale[a]=cand;addDispSSE=val;}
+      }
+      fitAddedDisp(makeDisp(dscale),true);
+    }
+
+    // Stage 3: release the absorptive amplitudes while retaining ONE shared
+    // signed D/A ratio per resonance.  For fixed shape parameters and ratios,
+    // each slice remains a fast linear amplitude solve with the combined basis
+    //     A(x) + ratio[p] D(x).
+    vector<double> ratios(np,0.0);
+    for(int a=0;a<np;++a) ratios[a]=dispRatio[grp[a]];
+    auto fitFreeAD=[&](const vector<double>& cc,const vector<double>& as,const vector<double>& ds,const vector<double>& rr,bool store)->double{
+      vector<vector<double> > basis(np,vector<double>(pix.size(),0.0));
+      for(int a=0;a<np;++a) for(size_t jj=0;jj<pix.size();++jj){
+        const double dd=x[pix[jj]]-cc[a];
+        basis[a][jj]=PeakFraction1D(dd,sig1*as[a],lor1*as[a],gmix[a])+rr[a]*PeakDispersion1D(dd,sig1*ds[a],lor1*ds[a],gmix[a]);
+      }
+      vector<double> ata(np*np,0.0);
+      for(size_t jj=0;jj<pix.size();++jj) for(int a=0;a<np;++a) for(int b=0;b<np;++b) ata[a*np+b]+=basis[a][jj]*basis[b][jj];
+      double total=0.0;
+      for(int zz=0;zz<nslices;++zz){
+        vector<double> aty(np,0.0),coef;
+        for(size_t jj=0;jj<pix.size();++jj){const double yy=data[zz*npts+pix[jj]];for(int a=0;a<np;++a)aty[a]+=basis[a][jj]*yy;}
+        if(!solve(ata,aty,coef,np))coef.assign(np,0.0);
+        for(size_t jj=0;jj<pix.size();++jj){double calc=0.0;for(int a=0;a<np;++a)calc+=coef[a]*basis[a][jj];const double r=data[zz*npts+pix[jj]]-calc;total+=r*r;}
+        if(store)for(int a=0;a<np;++a){const int p=grp[a];intens[p][zz]=coef[a];dispIntens[p][zz]=rr[a]*coef[a];}
+      }
+      return total;
+    };
+
+    double finalSSE=addDispSSE;
+    if(FitPhase){
+      for(int a=0;a<np;++a) ratios[a]=dispRatio[grp[a]];
+      finalSSE=fitFreeAD(centers,scales,dscale,ratios,false);
+      const double gr=0.6180339887498948482;
+      for(int sweep=0;sweep<2;++sweep) for(int a=0;a<np;++a){
+        auto optScale=[&](bool dispersion){double lo=minScale,hi=dispersion?dMaxScale:maxScale,c=hi-gr*(hi-lo),d=lo+gr*(hi-lo);vector<double> as=scales,ds=dscale;if(dispersion)ds[a]=c;else as[a]=c;double fc=fitFreeAD(centers,as,ds,ratios,false);as=scales;ds=dscale;if(dispersion)ds[a]=d;else as[a]=d;double fd=fitFreeAD(centers,as,ds,ratios,false);for(int it=0;it<9;++it){if(fc<fd){hi=d;d=c;fd=fc;c=hi-gr*(hi-lo);as=scales;ds=dscale;if(dispersion)ds[a]=c;else as[a]=c;fc=fitFreeAD(centers,as,ds,ratios,false);}else{lo=c;c=d;fc=fd;d=lo+gr*(hi-lo);as=scales;ds=dscale;if(dispersion)ds[a]=d;else as[a]=d;fd=fitFreeAD(centers,as,ds,ratios,false);}}double cand=(fc<fd)?c:d,val=min(fc,fd);if(val<finalSSE){if(dispersion)dscale[a]=cand;else scales[a]=cand;finalSSE=val;}};
+        optScale(false); optScale(true);
+        // Refine the shared signed D/A ratio directly.  The broad bounds are a
+        // diagnostic safeguard; normal solutions are expected to be much smaller.
+        {double lo=-1.0,hi=1.0,c=hi-gr*(hi-lo),d=lo+gr*(hi-lo);vector<double> tr=ratios;tr[a]=c;double fc=fitFreeAD(centers,scales,dscale,tr,false);tr=ratios;tr[a]=d;double fd=fitFreeAD(centers,scales,dscale,tr,false);for(int it=0;it<12;++it){if(fc<fd){hi=d;d=c;fd=fc;c=hi-gr*(hi-lo);tr=ratios;tr[a]=c;fc=fitFreeAD(centers,scales,dscale,tr,false);}else{lo=c;c=d;fc=fd;d=lo+gr*(hi-lo);tr=ratios;tr[a]=d;fd=fitFreeAD(centers,scales,dscale,tr,false);}}double cand=(fc<fd)?c:d,val=min(fc,fd);if(val<finalSSE){ratios[a]=cand;finalSSE=val;}}
+        // One Gaussian/Lorentzian mixing parameter is shared by the absorptive
+        // and dispersive components of this resonance.  Optimise that single
+        // parameter only in the final released A+D stage.
+        {double lo=0.0,hi=1.0,c=hi-gr*(hi-lo),d=lo+gr*(hi-lo);double oldg=gmix[a];gmix[a]=c;double fc=fitFreeAD(centers,scales,dscale,ratios,false);gmix[a]=d;double fd=fitFreeAD(centers,scales,dscale,ratios,false);for(int it=0;it<10;++it){if(fc<fd){hi=d;d=c;fd=fc;c=hi-gr*(hi-lo);gmix[a]=c;fc=fitFreeAD(centers,scales,dscale,ratios,false);}else{lo=c;c=d;fc=fd;d=lo+gr*(hi-lo);gmix[a]=d;fd=fitFreeAD(centers,scales,dscale,ratios,false);}}double cand=(fc<fd)?c:d,val=min(fc,fd);if(val<finalSSE){gmix[a]=cand;finalSSE=val;}else gmix[a]=oldg;}
+        if(centerLim>0){double lo=peakList[grp[a]].x-centerLim,hi=peakList[grp[a]].x+centerLim,c=hi-gr*(hi-lo),d=lo+gr*(hi-lo);vector<double> cc=centers;cc[a]=c;double fc=fitFreeAD(cc,scales,dscale,ratios,false);cc=centers;cc[a]=d;double fd=fitFreeAD(cc,scales,dscale,ratios,false);for(int it=0;it<7;++it){if(fc<fd){hi=d;d=c;fd=fc;c=hi-gr*(hi-lo);cc=centers;cc[a]=c;fc=fitFreeAD(cc,scales,dscale,ratios,false);}else{lo=c;c=d;fc=fd;d=lo+gr*(hi-lo);cc=centers;cc[a]=d;fd=fitFreeAD(cc,scales,dscale,ratios,false);}}double cand=(fc<fd)?c:d,val=min(fc,fd);if(val<finalSSE){centers[a]=cand;finalSSE=val;}}
+      }
+      fitFreeAD(centers,scales,dscale,ratios,true);
+      for(int a=0;a<np;++a) dispRatio[grp[a]]=ratios[a];
+    }
+
+    for(int a=0;a<np;++a){const int p=grp[a];fitCenter[p]=centers[a];fitScale[p]=scales[a];dispScale[p]=dscale[a];sharedVoigt[p]=gmix[a];}
+    cout << "  Shared A+D group:";
+    for(int a=0;a<np;++a){
+      const double ratio=dispRatio[grp[a]];
+      cout << " " << (peakList[grp[a]].name.empty()?to_string(grp[a]+1):peakList[grp[a]].name)
+           << " Aw=" << sig1*scales[a]*obs << "Hz Dw=" << sig1*dscale[a]*obs << "Hz g(shared)=" << gmix[a]
+           << " D/A~" << ratio;
+    }
+    cout << " SSE input " << inputSSE << " zero-A " << zeroShapeSSE << " fixed-A+fit-D " << addDispSSE << " free-A+D " << finalSSE << endl;
+  }
+
+  string fitDir; const size_t slash=infile.find_last_of("/\\"); fitDir=(slash==string::npos)?"fit":infile.substr(0,slash)+"/fit";
+  if(::mkdir(fitDir.c_str(),0775)!=0 && errno!=EEXIST){cerr<<"Protocol2PFit: cannot create "<<fitDir<<endl;return;}
+  for(int p=0;p<peaks;++p){
+    string name=peakList[p].name.empty()?to_string(p+1):peakList[p].name, base=fitDir+"/"+name;
+    FILE* out=fopen((base+".out").c_str(),"w"); if(out){
+      fprintf(out,"#\n# Peak_Name %s\n# Overlap_group %d\n#\n# --------- Results of the fit -------------\n#\n",name.c_str(),peakGroup[p]+1);
+      fprintf(out,"# Parameter        Value           Esd\n# %-12s %14.7e %14s\n","f01(ppm)",fitCenter[p],"nan");
+      fprintf(out,"# %-12s %14.7e %14s\n","w1(Hz)",sig1*fitScale[p]*obs,"nan");
+      fprintf(out,"# %-12s %14.7e %14s\n","g1(shared)",sharedVoigt[p],"nan");
+      fprintf(out,"# %-12s %14.7e %14s\n","dw1(Hz)",sig1*dispScale[p]*obs,"nan");
+      fprintf(out,"# %-12s %14.7e %14s\n","D/A(shared)",dispRatio[p],"nan");
+      fprintf(out,"############################################\n# %10s        Abs.Intensity      Disp.Intensity      Esd(Abs)\n",zlabel.c_str());
+      for(int zz=0;zz<nslices;++zz) fprintf(out,"%12.3e   %14.7e %14.7e %14.7e\n",z[zz],intens[p][zz],dispIntens[p][zz],esd[p][zz]); fclose(out);
+    }
+    FILE* dat=fopen((base+".dat").c_str(),"w"); if(dat){
+      fprintf(dat,"%11s %11s %11s %11s\n","# Pseudo","F1(ppm)","Data","Calc");
+      for(int zz=0;zz<nslices;++zz){for(int j=0;j<npts;++j) if(fabs(x[j]-fitCenter[p])<=radius){double calc=0;for(int q=0;q<peaks;++q) if(fabs(fitCenter[q]-fitCenter[p])<=2.0*radius)calc+=intens[q][zz]*PeakFraction1D(x[j]-fitCenter[q],sig1*fitScale[q],lor1*fitScale[q],sharedVoigt[q])+dispIntens[q][zz]*PeakDispersion1D(x[j]-fitCenter[q],sig1*dispScale[q],lor1*dispScale[q],sharedVoigt[q]);fprintf(dat,"%11.4e %11.4e %11.4e %11.4e\n",z[zz],x[j],data[zz*npts+j],calc);}fprintf(dat,"\n\n");} fclose(dat);
+    }
+  }
+  cout << "Protocol2PFit fitted " << peaks << " restrained peaks across " << nslices << " pseudo slices into " << fitDir << endl;
+}

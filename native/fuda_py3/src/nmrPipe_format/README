@@ -1,0 +1,406 @@
+
+fdatap.h - NMRPipe Data and Header Definitions
+
+DESCRIPTION
+     For more details on the NMRPipe data format see file: fdatap.h
+
+     The NMRPipe parameter header array FDATA currently  consists
+     of 512 4-byte floating-point values which describe the spec-
+     tral data. While all numerical  values  in  this  array  are
+     floating  point,  many represent parameters (such as size in
+     points) which are integers. Some parts of the header contain
+     packed ascii text.
+
+     As of 7/2015, there are four variations of data in the NMRPipe format:
+
+     1. Single-File (1D and 2D): the data are stored in a single
+        binary file consiting of the header followed by the
+        spectral intensities, stored in sequential order as
+        4-byte floats. FDPIPEFLAG will be zero.
+
+     2. 2D Multi-File (3D and 4D): the data are stored as a series
+        of 2D file planes, each with its own complete header
+        followed by the spectral intensities in sequential order.
+        FDPIPEFLAG will be zero.
+  
+     3. Data Stream (3D and 4D): the data are in the form of a pipeline
+        stream, with a single header at the beginning followed by
+        all of the spectral intensities in sequential order.
+        FDPIPEFLAG will be 2 1 3 or 4 (CUR_XDIM ... etc).
+ 
+     4. 3D Multi-File (4D Only) the data are stored as a series of
+        3D file cubes, each with its own complete header followed
+        by the spectral intensities in sequential order.
+        FDPIPEFLAG will be zero and FDCUBEFLAG will be 1.
+
+     The header values can be manipulated directly, but  this  is
+     not  recommended.  Instead, the functions getParm() and set-
+     Parm() can be used to extract or set header values according
+     to  parameter  codes and the dimension of interest (if any).
+     See the source code distribution for examples of these func-
+     tions.
+
+     The NMRPipe format was created  to  be  compatible  with  an
+     older  format  which  pre-dates phase-sensitive NMR and mul-
+     tidimensional NMR.  So, for historical  reasons,  there  are
+     some  potentially  confusing aspects regarding definition of
+     dimension sizes, data types, and interleaving  of  real  and
+     imaginary data.
+
+     In the NMRPipe nomenclature, the dimensions are  called  the
+     X-Axis,  Y-Axis,  Z-Axis,  and A-Axis.  The X-Axis refers to
+     rows from the spectral data file or data stream; the  Y-Axis
+     refers to the next dimension etc.  Some rules of thumb about
+     the data format follow:
+
+     1. Complex data in the X-Axis is stored as separated 1D vectors
+        of real and imaginary points (see below). 
+  
+     2. Complex data in the Y-Axis, Z-Axis, and A-Axis is stored as
+        interleaved real and imaginary points.
+  
+     3. The X-Axis size is recorded as complex points.
+  
+     4. The Z-Axis and A-Axis sizes are recorded as total points real+imag.
+  
+     5. If both the X-Axis and Y-Axis are complex, the Y-Axis size
+        is reported as total points real+imag.
+  
+     6. If the X-Axis is not complex but the Y-Axis is complex,
+        the Y-axis size is reported as complex points.
+  
+     7. If a given dimension is not complex, no space is reserved
+        for its imaginary part in the data file; it is simply skipped.
+  
+     8. TPPI data, and Bruker QSEQ mode data are treated as real data.
+
+DIMENSION-SPECIFIC PARAMETERS
+     The following are generalized integer codes  for  parameters
+     which  have a specific value for each dimension of the spec-
+     trum. In the codes given, NDPARM currently has  a  value  of
+     1000.  This assures that all of the generalize codes will be
+     different that the actual  parameter  array  location  codes
+     0-511.   For  each  ND  code  given  here,  there  are  four
+     corresponding header locations for each of the for  possible
+     dimensions.   For a complete list of all parameters, see the
+     file fdatap.h in the source code distribution.
+
+     NDSIZE (1+NDPARM)
+          Number of points  in  the  given  dimension.   For  the
+          X-Axis,  this  is  given  in  complex  points.  For the
+          Y-Axis, this is given in total points real+imag if both
+          the  X-Axis  and  Y-Axis  are  complex,  and in complex
+          points otherwise.  For the Z-Axis and A-Axis,  this  is
+          given in total points real+imag.
+
+     NDAPOD (2+NDPARM)
+          Current time-domain size.  In the case  of  time-domain
+          data,  this  is  the  current  number  of valid complex
+          time-domain  points  in  the  data.   In  the  case  of
+          frequency-domain data, this is the number of valid com-
+          plex time-domain points which would be available if the
+          data was inverse transformed.
+
+     NDSW (3+NDPARM)
+          Full Sweep Width Hz.
+
+     NDORIG (4+NDPARM)
+          Axis origin (location of last point in the data) in Hz.
+
+     NDOBS (5+NDPARM)
+          Spectral observe frequency in MHz.
+
+     NDFTFLAG (6+NDPARM)
+          Fourier transform flag;
+            0 = Time Domain
+            1 = Frequency Domain
+
+     NDQUADFLAG (7+NDPARM)
+          Quadtrature Mode Flag; describes the data type  of  the
+          dimension;
+            0 = Complex (States, States-TPPI)
+            1 = Real (Bruker QSEQ, TPPI)
+            2 = Bruker Pseudocomplex (Obsolete handling for QSEQ)
+
+     NDUNITS (8+NDPARM)
+          Axis Units Code; currently unused.
+            1 = Seconds
+            2 = Hz
+            3 = PPM
+            4 = Points
+
+     NDLABEL (9+NDPARM)
+          8-character Axis Label.
+
+     NDP0 (11+NDPARM)
+          Zero Order Phase, Degrees.
+
+     NDP1 (12+NDPARM)
+          First Order Phase, Degrees.
+
+     NDCAR (13+NDPARM)
+          Carrier Position, PPM.
+
+     NDCENTER (14+NDPARM)
+          Point Location of Zero Frequency.
+
+     NDAQSIGN (15+NDPARM)
+          Sign adjustment needed for forward FT:
+             0 = No Sign Adjustment
+             1 = Real Sign Alternation
+             2 = Complex Sign Alternation
+            16 = Negate Imaginaries
+            17 = Real Sign Alternation, Negate
+            18 = Complex Sign Alternation, Negate Imaginaries
+
+     NDAPODCODE (16+NDPARM)
+          Window function used. Current values are:
+             0 = NA   No Window Used
+             1 = SP   Adjustable Sine Bell
+             2 = EM   Exponential Multiply
+             3 = GM   Lorentz-to-Gauss
+             4 = TM   Trapezoid
+             5 = ZE   Zero Range
+             6 = TRI  Triangle Window
+
+     NDAPODQ1 (17+NDPARM)
+          Window parameter Q1.
+
+     NDAPODQ2 (18+NDPARM)
+          Window parameter Q2.
+
+     NDAPODQ3 (19+NDPARM)
+          Window parameter Q3.
+
+     NDC1 (20+NDPARM)
+          First point scale - 1.0
+
+     NDZF (21+NDPARM)
+          Negative of Zero Fill Size.
+
+     NDX1 (22+NDPARM)
+          Extract region origin, if any, in points.
+
+     NDXN (23+NDPARM)
+          Extract region endpoint, if any, in points.
+
+     NDOFFPPM (24+NDPARM)
+          Additional PPM offset, used by assignment software.
+
+     NDFTSIZE (25+NDPARM)
+          Size of data when a forward Fourier transform was  last
+          performed.
+
+     NDTDSIZE (26+NDPARM)
+          Original time-domain size in complex points.
+
+ORIGINAL 2D PARAMETERS
+     FDMAGIC 0
+          Should be zero in valid NMRPipe data.
+
+     FDFLTFORMAT 1
+          Constant defining floating point format; see  CONSTANTS
+          below.
+
+     FDFLTORDER 2
+          Constant defining byte order; see CONSTANTS below.
+
+     FDSIZE 99
+          Number of points in current dimension, complex points.
+
+     FDREALSIZE 97
+          Number of valid time-domain points (obsolete).
+
+     FDSPECNUM 219
+          Number of complex 1D slices in 2D file plane.
+
+     FDQUADFLAG 106
+          This value is a function of both the X-Axis and  Y-Axis
+          data  types.   A value of zero means the X-Axis vectors
+          should be treated as complex for  purposes  of  reading
+          data.
+            0 = Complex (States, States-TPPI)
+            1 = Real (Bruker QSEQ, TPPI)
+            2 = Bruker Pseudocomplex (Obsolete handling for QSEQ)
+
+     FD2DPHASE 256
+          Describes the type of 2D file plane.
+            0 = Magnitude Mode
+            1 = TPPI
+            2 = States or States-TPPI
+            3 = Image
+
+DATA ORDER PARAMETERS
+     These parameters define the number of dimensions  and  their
+     order in the data; a newly-converted FID has dimension order
+     (2 1 3 4). These dimension codes are a  hold-over  from  the
+     oldest  2D  NMR  definitions,  where  the  directly-acquired
+     dimension was always t2, and the indirect dimension was t1.
+
+     FDTRANSPOSED 221
+            0 = Not Transposed
+            1 = Transposed
+
+     FDDIMCOUNT 9
+          Number of dimensions in the complete spectrum.
+
+     FDDIMORDER1 24
+          Dimension stored in X-Axis.
+
+     FDDIMORDER2 25
+          Dimension stored in Y-Axis.
+
+     FDDIMORDER3 26
+          Dimension stored in Z-Axis.
+
+     FDDIMORDER4 27
+          Dimension stored in A-Axis.
+
+
+PIPELINE PARAMETERS
+     The following parameters describe the data when it is  in  a
+     multidimensional data stream format (FDPIPEFLAG != 0):
+
+     FDPIPEFLAG 57
+          Dimension code of data stream. Non-standard.
+
+     FDCUBEFLAG 447
+          Indicates 3D cube series for 4D data.
+
+     FDPIPECOUNT 75
+          Number of functions in pipeline. Non-standard.
+
+     FDSLICECOUNT 443
+          Number of 1D slices in stream. Non-standard.
+
+     FDFILECOUNT 442
+          Number of files in complete data.
+
+PARALLEL PROCESSING PARAMETERS
+     The following definitions are used for  data  streams  which
+     are  subsets  of the complete data, as for parallel process-
+     ing:
+
+     FDFIRSTPLANE 77
+          First Z-Plane in subset. Non-standard.
+
+     FDLASTPLANE 78
+          Last Z-Plane in subset. Non-standard.
+
+     FDPARTITION 65
+          Slice count for client-server mode. Non-standard.
+
+     FDPLANELOC 14
+          Location of this plane; currently unused.
+
+DISPLAY SCALE
+     The following define max and  min  data  values,  previously
+     used for contour level setting:
+
+     FDMAX 247
+          Max value in real part of data.
+
+     FDMIN 248
+          Min value in real part of data.
+
+     FDSCALEFLAG 250
+          1 if the max and min values (FDMAX and  FDMIN)  in  the
+          header are accurate.
+
+     FDDISPMAX 251
+          Max value, used for display generation.
+
+     FDDISPMIN 252
+          Min value, used for display generation.
+
+OTHER PARAMETERS
+     Locations reserved for User customization:
+
+     FDUSER1 70
+          User Parameter 1.
+
+     FDUSER2 71
+          User Parameter 2.
+
+     FDUSER3 72
+          User Parameter 3.
+
+     FDUSER4 73
+          User Parameter 4.
+
+     FDUSER5 74
+          User Parameter 5.
+
+     Defines date and time when data was converted:
+
+     FDMONTH 294
+          Month, 1-12.
+
+     FDDAY 295
+          Day, 1-31.
+
+     FDYEAR 296
+          Year (with century, e.g. 1998, 2003 etc).
+
+     FDHOURS 283
+          Hour, 0-23.
+
+     FDMINS 284
+          Minute, 0-59.
+
+     FDSECS 285
+          Seconds, 0-60.
+
+
+MISCELLANEOUS PARAMETERS
+     FDMCFLAG 135
+          1 if a  Magnitude  Calculation  was  performed.
+
+     FDNOISE  153 
+          Used to store an RMS noise estimate. 
+
+     FDRANK 180
+          Estimate of matrix  rank;  Non-standard.
+
+     FDTEMPERATURE  157
+          Temperature,  degrees  C.  
+
+     FD2DVIRGIN 399 
+          0 if the data have never  been  accessed,  and  the  
+          header  never  checked  or adjusted. 
+
+     FDTAU 199 
+          A Time value (for spectral series).
+
+TEXT PARAMETERS
+     FDSRCNAME 286
+          Source file, 16 characters.
+
+     FDUSERNAME 290
+          Username, 16 characters.
+
+     FDOPERNAME 464
+          Operator name, 32 characters.
+
+     FDTITLE 297
+          Title, 60 characters.
+
+     FDCOMMENT 312
+          Comments, 160 characters.
+
+CONSTANTS
+     FDATASIZE 512
+          Length of header in 4-byte float values.
+
+     FDIEEECONS 0xeeeeeeee
+          Indicates IEEE floating point format.
+
+     FDVAXCONS 0x11111111
+          Indicates DEC  VAX  floating  point  format;  currently
+          unsupported by NMRPipe.
+
+     FDORDERCONS 2.345
+          Constant used to determine byte-order.
+
+SEE ALSO
+     fdatap.c, fdatap.h, showhdr.c

@@ -1,0 +1,14 @@
+2D FIT changes
+==============
+
+- FIT-only Gaussian/Lorentzian components are now area-normalised to unit integral.
+- The generic spinUnidec Peak()/deconvolution peak shapes are unchanged.
+- The spinUnidec g convention is retained: g=0 Gaussian, g=1 Lorentzian.
+- Analytical derivatives include linewidth-dependent normalisation terms.
+- Fixed-shape intensity initialisation uses the same normalised 2D basis, so fitted
+  intensity is an integrated-area coefficient.
+- Shared-width LM fitting retains one FWHM per dimension and includes a smooth
+  linewidth-collapse penalty below one digital sampling interval in that dimension.
+- FIT .dat output and RebuildDSFromFit use the normalised FIT basis.
+- fitted_params.out reports w1/w2 once, rather than separate Gaussian/Lorentzian widths.
+- Per-peak .out files report only w1/g1 and w2/g2 for the peak shape.

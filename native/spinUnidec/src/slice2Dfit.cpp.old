@@ -1,0 +1,1022 @@
+#ifndef SLICE2DFIT_C
+#define SLICE2DFIT_C
+
+#include "slice2D.hpp"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <iostream>
+#include <limits>
+#include <numeric>
+#include <unordered_map>
+#include <vector>
+
+static inline bool InsideEllipse(double x, double y,
+                                 double xc, double yc,
+                                 double rx, double ry)
+{
+  if (rx <= 0.0 || ry <= 0.0) return false;
+  const double dx = (x - xc) / rx;
+  const double dy = (y - yc) / ry;
+  return (dx * dx + dy * dy) <= 1.0;
+}
+
+static inline bool EllipseOverlap(double x1, double y1,
+                                  double x2, double y2,
+                                  double rx, double ry)
+{
+  if (rx <= 0.0 || ry <= 0.0) return false;
+  const double dx = (x1 - x2) / rx;
+  const double dy = (y1 - y2) / ry;
+  return (dx * dx + dy * dy) <= 4.0;
+}
+
+static inline double clampd(double v, double lo, double hi)
+{
+  return std::max(lo, std::min(v, hi));
+}
+
+static inline double BasisValue(const FitPeak2DLocal& pk, double x, double y)
+{
+  return Peak(x, pk.x, pk.sig1, pk.lor1, pk.voigt1) *
+         Peak(y, pk.y, pk.sig2, pk.lor2, pk.voigt2);
+}
+
+static bool SolveLinearSystem(std::vector<double> A,
+                              std::vector<double> b,
+                              std::vector<double>& x,
+                              int n)
+{
+  const double eps = 1e-14;
+  x.assign(n, 0.0);
+
+  for (int k = 0; k < n; ++k)
+  {
+    int piv = k;
+    double best = std::fabs(A[k * n + k]);
+    for (int r = k + 1; r < n; ++r)
+    {
+      const double v = std::fabs(A[r * n + k]);
+      if (v > best)
+      {
+        best = v;
+        piv = r;
+      }
+    }
+
+    if (best < eps)
+      return false;
+
+    if (piv != k)
+    {
+      for (int c = k; c < n; ++c)
+        std::swap(A[k * n + c], A[piv * n + c]);
+      std::swap(b[k], b[piv]);
+    }
+
+    const double diag = A[k * n + k];
+    for (int c = k; c < n; ++c)
+      A[k * n + c] /= diag;
+    b[k] /= diag;
+
+    for (int r = k + 1; r < n; ++r)
+    {
+      const double f = A[r * n + k];
+      if (std::fabs(f) < eps)
+        continue;
+      for (int c = k; c < n; ++c)
+        A[r * n + c] -= f * A[k * n + c];
+      b[r] -= f * b[k];
+    }
+  }
+
+  for (int k = n - 1; k >= 0; --k)
+  {
+    double v = b[k];
+    for (int c = k + 1; c < n; ++c)
+      v -= A[k * n + c] * x[c];
+    x[k] = v;
+  }
+
+  return true;
+}
+
+static void BuildEllipsePixels(const slice2D& s,
+                               const FitGroup2DLocal& g,
+                               const std::vector<FitPeak2DLocal>& peaks,
+                               double radIppm,
+                               double radJppm,
+                               std::vector<int>& pixels)
+{
+  pixels.clear();
+  pixels.reserve((g.maxI - g.minI + 1) * (g.maxJ - g.minJ + 1));
+
+  for (int j = g.minJ; j <= g.maxJ; ++j)
+  {
+    const double y = s.jvals[j];
+    for (int i = g.minI; i <= g.maxI; ++i)
+    {
+      const double x = s.ivals[i];
+
+      bool keep = false;
+      for (int pm : g.members)
+      {
+        const FitPeak2DLocal& pk = peaks[pm];
+        if (InsideEllipse(x, y, pk.x, pk.y, radIppm, radJppm))
+        {
+          keep = true;
+          break;
+        }
+      }
+
+      if (keep)
+        pixels.push_back(i + j * s.si);
+    }
+  }
+}
+
+static double FitGroupAtFixedShape(const slice2D& s,
+                                   const FitGroup2DLocal& g,
+                                   const std::vector<FitPeak2DLocal>& peaks,
+                                   const std::vector<int>& pixels,
+                                   std::vector<double>& coeff)
+{
+  const int npeak = static_cast<int>(g.members.size());
+  if (npeak == 0)
+  {
+    coeff.clear();
+    return 0.0;
+  }
+
+  std::vector<double> ata(npeak * npeak, 0.0);
+  std::vector<double> aty(npeak, 0.0);
+
+  for (int idx : pixels)
+  {
+    const int i = idx % s.si;
+    const int j = idx / s.si;
+    const double yy = static_cast<double>(s.DI[idx]);
+
+    std::vector<double> row(npeak, 0.0);
+    for (int p = 0; p < npeak; ++p)
+      row[p] = BasisValue(peaks[g.members[p]], s.ivals[i], s.jvals[j]);
+
+    for (int a = 0; a < npeak; ++a)
+    {
+      aty[a] += row[a] * yy;
+      for (int b = 0; b <= a; ++b)
+        ata[a * npeak + b] += row[a] * row[b];
+    }
+  }
+
+  for (int a = 0; a < npeak; ++a)
+    for (int b = 0; b < a; ++b)
+      ata[b * npeak + a] = ata[a * npeak + b];
+
+  if (!SolveLinearSystem(ata, aty, coeff, npeak))
+    coeff.assign(npeak, 0.0);
+
+  double sse = 0.0;
+  for (int idx : pixels)
+  {
+    const int i = idx % s.si;
+    const int j = idx / s.si;
+    double pred = 0.0;
+    for (int p = 0; p < npeak; ++p)
+      pred += coeff[p] * BasisValue(peaks[g.members[p]], s.ivals[i], s.jvals[j]);
+
+    const double r = static_cast<double>(s.DI[idx]) - pred;
+    sse += r * r;
+  }
+
+  return sse;
+}
+
+static void PredictGroupToBuffer(const slice2D& s,
+                                 const FitGroup2DLocal& g,
+                                 const std::vector<FitPeak2DLocal>& peaks,
+                                 const std::vector<int>& pixels,
+                                 const std::vector<double>& coeff,
+                                 std::vector<double>& buffer)
+{
+  const int npeak = static_cast<int>(g.members.size());
+  for (int idx : pixels)
+  {
+    const int i = idx % s.si;
+    const int j = idx / s.si;
+    double pred = 0.0;
+    for (int p = 0; p < npeak; ++p)
+      pred += coeff[p] * BasisValue(peaks[g.members[p]], s.ivals[i], s.jvals[j]);
+    buffer[idx] = pred;
+  }
+}
+
+void slice2D::BuildPeakListFromDB(double threshold,
+                                  std::vector<FitPeak2DLocal>& peaks)
+{
+  peaks.clear();
+
+  for (int j = 0; j < sj; ++j)
+  {
+    for (int i = 0; i < si; ++i)
+    {
+      const int ii = i + j * si;
+      const double v = static_cast<double>(DB[ii]);
+      if (std::fabs(v) <= threshold)
+        continue;
+
+      FitPeak2DLocal p;
+      p.i = i;
+      p.j = j;
+      p.ii = ii;
+      p.x = ivals[i];
+      p.y = jvals[j];
+      p.raw = v;
+      p.intensity = v;
+      p.fitted = 0.0;
+      p.sig1 = sig1;
+      p.sig2 = sig2;
+      p.lor1 = lor1;
+      p.lor2 = lor2;
+      p.voigt1 = voigt1;
+      p.voigt2 = voigt2;
+      p.group = -1;
+      peaks.push_back(p);
+    }
+  }
+}
+
+std::vector<FitGroup2DLocal> slice2D::BuildGroups(
+                                                const std::vector<FitPeak2DLocal>& peaks,
+                                                double radIppm,
+                                                double radJppm)
+{
+  std::vector<FitGroup2DLocal> groups;
+  const int n = static_cast<int>(peaks.size());
+  if (n == 0)
+    return groups;
+
+  const double di = (si > 1) ? std::fabs(ivals[1] - ivals[0]) : 1.0;
+  const double dj = (sj > 1) ? std::fabs(jvals[1] - jvals[0]) : 1.0;
+  const double rx = std::max(radIppm, di);
+  const double ry = std::max(radJppm, dj);
+  const int cellX = std::max(1, static_cast<int>(std::floor(rx / di)));
+  const int cellY = std::max(1, static_cast<int>(std::floor(ry / dj)));
+
+  auto keyOf = [](int a, int b) -> long long
+  {
+    return (static_cast<long long>(a) << 32) ^ static_cast<unsigned int>(b);
+  };
+
+  std::unordered_map<long long, std::vector<int> > bins;
+  bins.reserve(n * 2);
+
+  for (int p = 0; p < n; ++p)
+    bins[keyOf(peaks[p].i / cellX, peaks[p].j / cellY)].push_back(p);
+
+  std::vector<int> parent(n);
+  std::iota(parent.begin(), parent.end(), 0);
+
+  auto findp = [&](int x) -> int
+  {
+    while (parent[x] != x)
+    {
+      parent[x] = parent[parent[x]];
+      x = parent[x];
+    }
+    return x;
+  };
+
+  auto unite = [&](int a, int b)
+  {
+    a = findp(a);
+    b = findp(b);
+    if (a != b)
+      parent[b] = a;
+  };
+
+  for (int p = 0; p < n; ++p)
+  {
+    const int bx = peaks[p].i / cellX;
+    const int by = peaks[p].j / cellY;
+
+    for (int dx = -1; dx <= 1; ++dx)
+    {
+      for (int dy = -1; dy <= 1; ++dy)
+      {
+        const auto it = bins.find(keyOf(bx + dx, by + dy));
+        if (it == bins.end())
+          continue;
+
+        for (int q : it->second)
+        {
+          if (EllipseOverlap(peaks[p].x, peaks[p].y,
+                             peaks[q].x, peaks[q].y,
+                             radIppm, radJppm))
+          {
+            unite(p, q);
+          }
+        }
+      }
+    }
+  }
+
+  std::unordered_map<int, int> rootToGroup;
+  for (int p = 0; p < n; ++p)
+  {
+    const int root = findp(p);
+    int gid;
+    auto it = rootToGroup.find(root);
+    if (it == rootToGroup.end())
+    {
+      gid = static_cast<int>(groups.size());
+      rootToGroup[root] = gid;
+      groups.push_back(FitGroup2DLocal());
+    }
+    else
+    {
+      gid = it->second;
+    }
+    groups[gid].members.push_back(p);
+  }
+
+  const int padI = std::max(1, static_cast<int>(std::ceil((radIppm + 4.0 * std::max(sig1, lor1)) / di)));
+  const int padJ = std::max(1, static_cast<int>(std::ceil((radJppm + 4.0 * std::max(sig2, lor2)) / dj)));
+
+  for (auto& g : groups)
+  {
+    int minI = si - 1;
+    int maxI = 0;
+    int minJ = sj - 1;
+    int maxJ = 0;
+
+    for (int p : g.members)
+    {
+      minI = std::min(minI, peaks[p].i);
+      maxI = std::max(maxI, peaks[p].i);
+      minJ = std::min(minJ, peaks[p].j);
+      maxJ = std::max(maxJ, peaks[p].j);
+    }
+
+    g.minI = std::max(0, minI - padI);
+    g.maxI = std::min(si - 1, maxI + padI);
+    g.minJ = std::max(0, minJ - padJ);
+    g.maxJ = std::min(sj - 1, maxJ + padJ);
+  }
+
+  return groups;
+}
+
+static constexpr int kFitOptimisationGuessAndCheck = 0;
+static constexpr int kFitOptimisationLevenbergMarquardt = 1;
+
+struct Peak1DParts
+{
+  double value;
+  double d_x0;
+  double d_sig;
+  double d_lor;
+  double d_voigt;
+};
+
+struct PeakShapeParams2D
+{
+  double intensity;
+  double x;
+  double y;
+  double sig1;
+  double sig2;
+  double lor1;
+  double lor2;
+  double voigt1;
+  double voigt2;
+};
+
+static inline PeakShapeParams2D MakeParamsFromPeak(const FitPeak2DLocal& pk)
+{
+  PeakShapeParams2D p;
+  p.intensity = pk.intensity;
+  p.x = pk.x;
+  p.y = pk.y;
+  p.sig1 = pk.sig1;
+  p.sig2 = pk.sig2;
+  p.lor1 = pk.lor1;
+  p.lor2 = pk.lor2;
+  p.voigt1 = pk.voigt1;
+  p.voigt2 = pk.voigt2;
+  return p;
+}
+
+static inline void ApplyParamsToPeak(FitPeak2DLocal& pk, const PeakShapeParams2D& p)
+{
+  pk.intensity = p.intensity;
+  pk.fitted = p.intensity;
+  pk.x = p.x;
+  pk.y = p.y;
+  pk.sig1 = p.sig1;
+  pk.sig2 = p.sig2;
+  pk.lor1 = p.lor1;
+  pk.lor2 = p.lor2;
+  pk.voigt1 = p.voigt1;
+  pk.voigt2 = p.voigt2;
+}
+
+static inline Peak1DParts EvaluatePeak1D(double x, double x0, double sig, double lor, double voigt)
+{
+  const double k = 2.355;
+  const double safeSig = std::max(std::fabs(sig), 1e-12);
+  const double s = safeSig / k;
+  const double dx = x - x0;
+  const double dx2 = dx * dx;
+  const double s2 = s * s;
+
+  const double g = std::exp(-dx2 / (2.0 * s2));
+
+  const double a = 0.5 * std::max(std::fabs(lor), 0.0);
+  const double a2 = a * a;
+  const double denom = dx2 + a2;
+  double l = 0.0;
+  double dldx0 = 0.0;
+  double dldr = 0.0;
+
+  if (a > 0.0)
+  {
+    l = a2 / denom;
+    const double denom2 = denom * denom;
+    dldx0 = 2.0 * dx * a2 / denom2;
+    dldr = a * dx2 / denom2;
+  }
+
+  Peak1DParts out;
+  out.value = (1.0 - voigt) * g + voigt * l;
+  out.d_x0 = (1.0 - voigt) * (g * dx / s2) + voigt * dldx0;
+  out.d_sig = (1.0 - voigt) * (g * dx2 / (s2 * safeSig));
+  out.d_lor = voigt * dldr;
+  out.d_voigt = l - g;
+  return out;
+}
+
+static inline double PeakValueAndDerivatives(const PeakShapeParams2D& p,
+                                             double x, double y,
+                                             std::array<double, 9>& deriv)
+{
+  const Peak1DParts px = EvaluatePeak1D(x, p.x, p.sig1, p.lor1, p.voigt1);
+  const Peak1DParts py = EvaluatePeak1D(y, p.y, p.sig2, p.lor2, p.voigt2);
+
+  const double basis = px.value * py.value;
+  const double model = p.intensity * basis;
+
+  deriv[0] = basis;
+  deriv[1] = p.intensity * px.d_x0 * py.value;
+  deriv[2] = p.intensity * px.d_sig * py.value;
+  deriv[3] = p.intensity * px.d_lor * py.value;
+  deriv[4] = p.intensity * px.d_voigt * py.value;
+  deriv[5] = p.intensity * px.value * py.d_x0;
+  deriv[6] = p.intensity * px.value * py.d_sig;
+  deriv[7] = p.intensity * px.value * py.d_lor;
+  deriv[8] = p.intensity * px.value * py.d_voigt;
+
+  return model;
+}
+
+static inline void ClampParams(PeakShapeParams2D& p,
+                               const slice2D& s)
+{
+  const double xmin = std::min(s.ivals[0], s.ivals[s.si - 1]);
+  const double xmax = std::max(s.ivals[0], s.ivals[s.si - 1]);
+  const double ymin = std::min(s.jvals[0], s.jvals[s.sj - 1]);
+  const double ymax = std::max(s.jvals[0], s.jvals[s.sj - 1]);
+
+  if (!std::isfinite(p.intensity))
+    p.intensity = 0.0;
+  if (!std::isfinite(p.x))
+    p.x = 0.5 * (xmin + xmax);
+  if (!std::isfinite(p.y))
+    p.y = 0.5 * (ymin + ymax);
+  if (!std::isfinite(p.sig1) || p.sig1 <= 1e-12)
+    p.sig1 = 1e-12;
+  if (!std::isfinite(p.sig2) || p.sig2 <= 1e-12)
+    p.sig2 = 1e-12;
+  if (!std::isfinite(p.lor1) || p.lor1 <= 1e-12)
+    p.lor1 = 1e-12;
+  if (!std::isfinite(p.lor2) || p.lor2 <= 1e-12)
+    p.lor2 = 1e-12;
+  if (!std::isfinite(p.voigt1))
+    p.voigt1 = 0.0;
+  if (!std::isfinite(p.voigt2))
+    p.voigt2 = 0.0;
+
+  p.x = clampd(p.x, xmin, xmax);
+  p.y = clampd(p.y, ymin, ymax);
+  p.voigt1 = clampd(p.voigt1, 0.0, 1.0);
+  p.voigt2 = clampd(p.voigt2, 0.0, 1.0);
+}
+
+static inline int ParamOffset(int peakIndex)
+{
+  return peakIndex * 9;
+}
+
+static double EvaluateGroupLM(const slice2D& s,
+                              const FitGroup2DLocal& g,
+                              const std::vector<int>& pixels,
+                              const std::vector<PeakShapeParams2D>& params,
+                              std::vector<double>* model,
+                              std::vector<double>* raw,
+                              std::vector<double>* jtj,
+                              std::vector<double>* jtr)
+{
+  const int npeak = static_cast<int>(params.size());
+  const int nparam = npeak * 9;
+
+  double sse = 0.0;
+  for (int idx : pixels)
+  {
+    const int i = idx % s.si;
+    const int j = idx / s.si;
+    const double yy = static_cast<double>(s.DI[idx]);
+
+    std::vector<std::array<double, 9> > derivs(npeak);
+    double pred = 0.0;
+    for (int p = 0; p < npeak; ++p)
+      pred += PeakValueAndDerivatives(params[p], s.ivals[i], s.jvals[j], derivs[p]);
+
+    const double residual = yy - pred;
+    sse += residual * residual;
+
+    if (model)
+      (*model)[idx] = pred;
+    if (raw)
+      (*raw)[idx] = yy;
+
+    if (jtj && jtr)
+    {
+      for (int p = 0; p < npeak; ++p)
+      {
+        const int off = ParamOffset(p);
+        const std::array<double, 9>& d = derivs[p];
+        for (int a = 0; a < 9; ++a)
+        {
+          const int ia = off + a;
+          (*jtr)[ia] += d[a] * residual;
+          for (int b = 0; b <= a; ++b)
+            (*jtj)[ia * nparam + off + b] += d[a] * d[b];
+        }
+      }
+    }
+  }
+
+  if (jtj && jtr)
+  {
+    for (int a = 0; a < nparam; ++a)
+      for (int b = 0; b < a; ++b)
+        (*jtj)[b * nparam + a] = (*jtj)[a * nparam + b];
+  }
+
+  return sse;
+}
+
+static double FitOneGroup2DGuess(const slice2D& s,
+                                 const FitGroup2DLocal& g,
+                                 std::vector<FitPeak2DLocal>& peaks,
+                                 int maxIter,
+                                 std::vector<double>& model,
+                                 std::vector<double>& raw,
+                                 double radIppm,
+                                 double radJppm)
+{
+  const int npeak = static_cast<int>(g.members.size());
+  if (npeak == 0)
+    return 0.0;
+
+  std::vector<int> pixels;
+  BuildEllipsePixels(s, g, peaks, radIppm, radJppm, pixels);
+
+  std::vector<double> coeff(npeak, 0.0);
+  double best = FitGroupAtFixedShape(s, g, peaks, pixels, coeff);
+
+  auto probeOneParam = [&](int memberIndex, int paramIndex)
+  {
+    FitPeak2DLocal& pk = peaks[g.members[memberIndex]];
+    double* target = 0;
+    switch (paramIndex)
+    {
+      case 0: target = &pk.sig1; break;
+      case 1: target = &pk.sig2; break;
+      case 2: target = &pk.lor1; break;
+      case 3: target = &pk.lor2; break;
+      case 4: target = &pk.voigt1; break;
+      case 5: target = &pk.voigt2; break;
+      default: return;
+    }
+
+    const double old = *target;
+    double candidates[5];
+    int nc = 0;
+
+    if (paramIndex <= 3)
+    {
+      candidates[nc++] = std::max(1e-12, old * 0.75);
+      candidates[nc++] = std::max(1e-12, old * 0.875);
+      candidates[nc++] = old;
+      candidates[nc++] = old * 1.125;
+      candidates[nc++] = old * 1.25;
+    }
+    else
+    {
+      candidates[nc++] = clampd(old - 0.20, 0.0, 1.0);
+      candidates[nc++] = clampd(old - 0.10, 0.0, 1.0);
+      candidates[nc++] = old;
+      candidates[nc++] = clampd(old + 0.10, 0.0, 1.0);
+      candidates[nc++] = clampd(old + 0.20, 0.0, 1.0);
+    }
+
+    double localBest = best;
+    double localParam = old;
+    std::vector<double> trialCoeff = coeff;
+    std::vector<double> bestCoeffLocal = coeff;
+
+    for (int c = 0; c < nc; ++c)
+    {
+      *target = candidates[c];
+      trialCoeff = coeff;
+      const double sse = FitGroupAtFixedShape(s, g, peaks, pixels, trialCoeff);
+      if (sse < localBest)
+      {
+        localBest = sse;
+        localParam = candidates[c];
+        bestCoeffLocal = trialCoeff;
+      }
+    }
+
+    *target = localParam;
+    coeff = bestCoeffLocal;
+    best = localBest;
+  };
+
+  for (int outer = 0; outer < maxIter; ++outer)
+  {
+    const double prev = best;
+
+    for (int p = 0; p < npeak; ++p)
+    {
+      for (int m = 0; m < 6; ++m)
+        probeOneParam(p, m);
+    }
+
+    if (std::fabs(prev - best) / (std::fabs(prev) + 1e-12) < 1e-6)
+      break;
+  }
+
+  best = FitGroupAtFixedShape(s, g, peaks, pixels, coeff);
+
+  for (int p = 0; p < npeak; ++p)
+  {
+    FitPeak2DLocal& pk = peaks[g.members[p]];
+    pk.intensity = coeff[p];
+    pk.fitted = pk.intensity;
+  }
+
+  PredictGroupToBuffer(s, g, peaks, pixels, coeff, model);
+
+  for (int idx : pixels)
+    raw[idx] = static_cast<double>(s.DI[idx]);
+
+  return best;
+}
+
+static double FitOneGroup2DLM(const slice2D& s,
+                              const FitGroup2DLocal& g,
+                              std::vector<FitPeak2DLocal>& peaks,
+                              int maxIter,
+                              std::vector<double>& model,
+                              std::vector<double>& raw,
+                              double radIppm,
+                              double radJppm)
+{
+  const int npeak = static_cast<int>(g.members.size());
+  if (npeak == 0)
+    return 0.0;
+
+  std::vector<int> pixels;
+  BuildEllipsePixels(s, g, peaks, radIppm, radJppm, pixels);
+  if (pixels.empty())
+    return 0.0;
+
+  std::vector<double> coeff(npeak, 0.0);
+  const double startSSE = FitGroupAtFixedShape(s, g, peaks, pixels, coeff);
+
+  std::vector<PeakShapeParams2D> params(npeak);
+  for (int p = 0; p < npeak; ++p)
+  {
+    const FitPeak2DLocal& pk = peaks[g.members[p]];
+    params[p] = MakeParamsFromPeak(pk);
+    params[p].intensity = coeff[p];
+    if (!std::isfinite(params[p].intensity))
+      params[p].intensity = pk.raw;
+    ClampParams(params[p], s);
+  }
+
+  std::vector<PeakShapeParams2D> bestParams = params;
+  double bestSSE = startSSE;
+  double prevAcceptedSSE = startSSE;
+
+  const int nparam = npeak * 9;
+  const int maxAttempts = 8;
+  double lambda = 1e-3;
+
+  for (int iter = 0; iter < maxIter; ++iter)
+  {
+    bool accepted = false;
+
+    for (int attempt = 0; attempt < maxAttempts; ++attempt)
+    {
+      std::vector<double> jtj(nparam * nparam, 0.0);
+      std::vector<double> jtr(nparam, 0.0);
+
+      const double currentSSE = EvaluateGroupLM(s, g, pixels, params, 0, 0, &jtj, &jtr);
+
+      if (!std::isfinite(currentSSE))
+      {
+        lambda *= 10.0;
+        continue;
+      }
+
+      for (int p = 0; p < nparam; ++p)
+      {
+        const double diag = jtj[p * nparam + p];
+        jtj[p * nparam + p] += lambda * std::max(1.0, diag);
+      }
+
+      std::vector<double> delta;
+      if (!SolveLinearSystem(jtj, jtr, delta, nparam))
+      {
+        lambda *= 10.0;
+        continue;
+      }
+
+      std::vector<PeakShapeParams2D> trial = params;
+      for (int p = 0; p < npeak; ++p)
+      {
+        const int off = ParamOffset(p);
+        trial[p].intensity += delta[off + 0];
+        trial[p].x         += delta[off + 1];
+        trial[p].sig1      += delta[off + 2];
+        trial[p].lor1      += delta[off + 3];
+        trial[p].voigt1    += delta[off + 4];
+        trial[p].y         += delta[off + 5];
+        trial[p].sig2      += delta[off + 6];
+        trial[p].lor2      += delta[off + 7];
+        trial[p].voigt2    += delta[off + 8];
+        ClampParams(trial[p], s);
+      }
+
+      const double trialSSE = EvaluateGroupLM(s, g, pixels, trial, 0, 0, 0, 0);
+      if (std::isfinite(trialSSE) && trialSSE < bestSSE)
+      {
+        params = trial;
+        bestSSE = trialSSE;
+        bestParams = trial;
+        lambda = std::max(lambda * 0.3, 1e-12);
+        accepted = true;
+        break;
+      }
+
+      lambda *= 10.0;
+    }
+
+    if (!accepted)
+      break;
+
+    if (std::fabs(prevAcceptedSSE - bestSSE) / (std::fabs(prevAcceptedSSE) + 1e-12) < 1e-10)
+      break;
+
+    prevAcceptedSSE = bestSSE;
+  }
+
+  for (int p = 0; p < npeak; ++p)
+    ApplyParamsToPeak(peaks[g.members[p]], bestParams[p]);
+
+  EvaluateGroupLM(s, g, pixels, bestParams, &model, &raw, 0, 0);
+
+  return bestSSE;
+}
+
+static double FitOneGroup2DMode(const slice2D& s,
+                                const FitGroup2DLocal& g,
+                                std::vector<FitPeak2DLocal>& peaks,
+                                int maxIter,
+                                std::vector<double>& model,
+                                std::vector<double>& raw,
+                                double radIppm,
+                                double radJppm,
+                                int optimisationMode)
+{
+  if (optimisationMode == kFitOptimisationLevenbergMarquardt)
+    return FitOneGroup2DLM(s, g, peaks, maxIter, model, raw, radIppm, radJppm);
+
+  return FitOneGroup2DGuess(s, g, peaks, maxIter, model, raw, radIppm, radJppm);
+}
+
+static void FitPeaks2DImpl(slice2D& s,
+                           double radIppm,
+                           double radJppm,
+                           const std::string& paramOut,
+                           const std::string& gnuplotOut,
+                           int maxIter,
+                           double threshold,
+                           int optimisationMode)
+{
+  std::vector<FitPeak2DLocal> fitPeaks;
+  s.BuildPeakListFromDB(threshold, fitPeaks);
+
+  if (fitPeaks.empty())
+  {
+    std::cout << "FitPeaks2D: no non-zero DB entries found" << std::endl;
+    FILE* fp = fopen(paramOut.c_str(), "w");
+    if (fp) fclose(fp);
+    fp = fopen(gnuplotOut.c_str(), "w");
+    if (fp) fclose(fp);
+    return;
+  }
+
+  std::vector<FitGroup2DLocal> groups = s.BuildGroups(fitPeaks, radIppm, radJppm);
+
+  for (size_t g = 0; g < groups.size(); ++g)
+    for (int idx : groups[g].members)
+      fitPeaks[idx].group = static_cast<int>(g);
+
+  std::vector<double> model(s.size, 0.0);
+  std::vector<double> raw(s.size, 0.0);
+  std::vector<double> groupChi2(groups.size(), 0.0);
+
+#ifdef _OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+  for (int g = 0; g < static_cast<int>(groups.size()); ++g)
+  {
+    std::vector<double> localModel(s.size, 0.0);
+    std::vector<double> localRaw(s.size, 0.0);
+
+    groupChi2[g] = FitOneGroup2DMode(s,
+                                     groups[g],
+                                     fitPeaks,
+                                     maxIter,
+                                     localModel,
+                                     localRaw,
+                                     radIppm,
+                                     radJppm,
+                                     optimisationMode);
+
+    for (int j = groups[g].minJ; j <= groups[g].maxJ; ++j)
+      for (int i = groups[g].minI; i <= groups[g].maxI; ++i)
+      {
+        const int ii = i + j * s.si;
+        if (localModel[ii] != 0.0)
+          model[ii] = localModel[ii];
+        if (localRaw[ii] != 0.0)
+          raw[ii] = localRaw[ii];
+      }
+  }
+
+  FILE* pfp = fopen(paramOut.c_str(), "w");
+  if (pfp)
+  {
+    fprintf(pfp, "#peak\txppm\typpm\trawDB\tfittedI\tsig1\tsig2\tlor1\tlor2\tvoigt1\tvoigt2\tgroup\n");
+    for (size_t i = 0; i < fitPeaks.size(); ++i)
+    {
+      const FitPeak2DLocal& p = fitPeaks[i];
+      fprintf(pfp, "%zu\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%i\n",
+              i, p.x, p.y, p.raw, p.intensity, p.sig1, p.sig2, p.lor1, p.lor2, p.voigt1, p.voigt2, p.group);
+    }
+    fclose(pfp);
+  }
+
+  FILE* gfp = fopen(gnuplotOut.c_str(), "w");
+  if (gfp)
+  {
+    for (size_t g = 0; g < groups.size(); ++g)
+    {
+      const FitGroup2DLocal& grp = groups[g];
+      std::vector<int> pixels;
+      BuildEllipsePixels(s, grp, fitPeaks, radIppm, radJppm, pixels);
+
+      int lastJ = -999999;
+      for (size_t n = 0; n < pixels.size(); ++n)
+      {
+        const int idx = pixels[n];
+        const int i = idx % s.si;
+        const int j = idx / s.si;
+
+        if (j != lastJ)
+        {
+          if (lastJ != -999999)
+            fprintf(gfp, "\n");
+          lastJ = j;
+        }
+
+        double pred = 0.0;
+        for (int p = 0; p < static_cast<int>(grp.members.size()); ++p)
+          pred += fitPeaks[grp.members[p]].intensity *
+                  BasisValue(fitPeaks[grp.members[p]], s.ivals[i], s.jvals[j]);
+
+        fprintf(gfp, "%.12e\t%.12e\t%.12e\t%.12e\n",
+                s.ivals[i], s.jvals[j], static_cast<double>(s.DI[idx]), pred);
+      }
+      fprintf(gfp, "\n\n");
+    }
+    fclose(gfp);
+  }
+
+  const double chi2 = std::accumulate(groupChi2.begin(), groupChi2.end(), 0.0);
+  std::cout << "FitPeaks2D: peaks=" << fitPeaks.size()
+            << " groups=" << groups.size()
+            << " chi2=" << chi2 << std::endl;
+
+  s.fittedPeaks2D = fitPeaks;
+}
+
+double slice2D::FitOneGroup2D(const FitGroup2DLocal& g,
+                             std::vector<FitPeak2DLocal>& peaks,
+                             int maxIter,
+                             std::vector<double>& model,
+                             std::vector<double>& raw,
+                             double radIppm,
+                             double radJppm)
+{
+  return FitOneGroup2DGuess(*this, g, peaks, maxIter, model, raw, radIppm, radJppm);
+}
+
+void slice2D::FitPeaks2D(double radIppm,
+                          double radJppm,
+                          const std::string& paramOut,
+                          const std::string& gnuplotOut,
+                          int maxIter,
+                          double threshold)
+{
+  int optimisationMode = kFitOptimisationGuessAndCheck;
+  int iterations = maxIter;
+  if (iterations < 0)
+  {
+    optimisationMode = kFitOptimisationLevenbergMarquardt;
+    iterations = -iterations;
+  }
+
+  FitPeaks2DImpl(*this,
+                 radIppm,
+                 radJppm,
+                 paramOut,
+                 gnuplotOut,
+                 iterations,
+                 threshold,
+                 optimisationMode);
+}
+
+void slice2D::RebuildDSFromFit(double nsig)
+{
+  memset(DS, 0, size * SIZEMEM);
+
+  if (fittedPeaks2D.empty())
+    return;
+
+  for (size_t p = 0; p < fittedPeaks2D.size(); ++p)
+  {
+    const FitPeak2DLocal& pk = fittedPeaks2D[p];
+
+    const double wx = nsig * std::max(pk.sig1, pk.lor1);
+    const double wy = nsig * std::max(pk.sig2, pk.lor2);
+
+    int i0 = 0, i1 = si - 1;
+    int j0 = 0, j1 = sj - 1;
+
+    while (i0 < si && std::fabs(ivals[i0] - pk.x) > wx) ++i0;
+    while (i1 >= 0 && std::fabs(ivals[i1] - pk.x) > wx) --i1;
+    while (j0 < sj && std::fabs(jvals[j0] - pk.y) > wy) ++j0;
+    while (j1 >= 0 && std::fabs(jvals[j1] - pk.y) > wy) --j1;
+
+    if (i0 < 0) i0 = 0;
+    if (j0 < 0) j0 = 0;
+    if (i1 >= si) i1 = si - 1;
+    if (j1 >= sj) j1 = sj - 1;
+
+    for (int j = j0; j <= j1; ++j)
+    {
+      const double gy = Peak(jvals[j], pk.y, pk.sig2, pk.lor2, pk.voigt2);
+      if (gy == 0.0) continue;
+
+      for (int i = i0; i <= i1; ++i)
+      {
+        const int ii = i + j * si;
+        const double gx = Peak(ivals[i], pk.x, pk.sig1, pk.lor1, pk.voigt1);
+        if (gx == 0.0) continue;
+
+        DS[ii] += pk.intensity * gx * gy;
+      }
+    }
+  }
+}
+
+#endif

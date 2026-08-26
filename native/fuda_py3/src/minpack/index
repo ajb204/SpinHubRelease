@@ -1,0 +1,86 @@
+lib	minpack/ex
+for	test programs
+
+file	minpack/readme
+for	overview of minpack
+
+file	minpack/chkder.f
+gams	F3,G4c,K6d
+for	check gradients for consistency with functions
+
+file	minpack/dogleg.f
+for	determine combination of gauss-newton and gradient directions
+
+file	minpack/dpmpar.f
+for	provide double precision machine parameters
+
+file	minpack/enorm.f
+for	calculate euclidean norm of vector
+
+file	minpack/fdjac1.f
+for	calculate difference approximation to jacobian (nonlinear equations)
+
+file	minpack/fdjac2.f
+for	calculate difference approximation to jacobian (least squares)
+
+file	minpack/hybrd.f
+gams	F2
+for	solve systems of nonlinear equations (approximate jacobian)
+
+file	minpack/hybrd1.f
+gams	F2
+for	easy-to-use driver for (minpack/hybrd)
+
+file	minpack/hybrj.f
+gams	F2
+for	solve systems of nonlinear equations (analytic jacobian)
+
+file	minpack/hybrj1.f
+gams	F2
+for	easy-to-use driver for (minpack/hybrj)
+
+file	minpack/lmder.f
+gams	K1b1a2
+for	solve nonlinear least squares problem (analytic jacobian)
+
+file	minpack/lmder1.f
+gams	K1b1a2
+for	easy-to-use driver for (minpack/lmder)
+
+file	minpack/lmdif.f
+gams	K1b1a1
+for	solve nonlinear least squares problem (approximate jacobian)
+
+file	minpack/lmdif1.f
+gams	K1b1a1
+for	easy-to-use driver for (minpack/lmdif)
+
+file	minpack/lmpar.f
+for	determine levenberg-marquardt parameter
+
+file	minpack/lmstr.f
+gams	K1b1a2
+for	solve nonlinear least squares problem (storage conserving)
+
+file	minpack/lmstr1.f
+gams	K1b1a2
+for	easy-to-use driver for (minpack/lmstr)
+
+file	minpack/qform.f
+for	accumulate orthogonal matrix from qr factorization
+
+file	minpack/qrfac.f
+for	compute qr factorization of rectangular matrix
+
+file	minpack/qrsolv.f
+for	complete solution of least squares problem
+
+file	minpack/rwupdt.f
+for	update qr factorization after row addition
+
+file	minpack/r1mpyq.f
+for	apply orthogonal transformations from qr factorization
+
+file	minpack/r1updt.f
+for	update qr factorization after rank-1 addition
+

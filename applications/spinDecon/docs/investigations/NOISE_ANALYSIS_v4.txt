@@ -1,0 +1,12 @@
+Noise analysis v4
+=================
+
+Changes from v3:
+- Added a "Detail" button directly below the Noise plot.
+- Detail opens a resizable, scrollable window containing the current numerical
+  statistics and expanded explanations of each parameter and its interpretation.
+- Added 2, 3, 4 and 5 sigma positive/negative tail populations to the detail text.
+- Removed the statistics text box from the matplotlib plot.
+- Removed the plot title to recover vertical plotting space.
+- Reduced x/y axis label and tick-label font sizes.
+- The underlying robust MAD + iterative Gaussian-core analysis is unchanged.

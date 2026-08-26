@@ -1,0 +1,14 @@
+Noise analysis update - v3
+==========================
+
+Added automatic noise/intensity analysis to the existing Noise: matplotlib panel.
+
+On spectrum read the GUI now:
+- estimates the noise centre and sigma from the sparse spectrum using MAD plus an iterative central Gaussian fit;
+- plots positive and negative absolute intensities separately as |intensity-centre|/sigma on log/log axes;
+- overlays the expected Gaussian noise histogram;
+- reports N, fitted centre, fitted sigma, MAD sigma, maximum S/N, >3 sigma positive/negative counts, and positive tail excess;
+- stores the returned statistics in self.noiseStats and the fitted sigma in self.noiseVal;
+- exposes plot_noise_histogram(spectrum) / analyse_noise_spectrum(spectrum) for reuse;
+- samples very large arrays deterministically (up to 2,000,000 points) for responsive histogram analysis;
+- treats noise analysis as diagnostic so a plotting/statistics failure cannot block spectrum loading.

@@ -1,0 +1,17 @@
+2D FIT experimental grouping update
+
+After the existing geometric ellipse-overlap grouping, nearby peak pairs are also
+checked against the experimental DI spectrum. For a pair whose centres are more
+than two but no more than four extraction radii apart in elliptical distance,
+the code samples DI where the line between the peaks crosses each extraction
+ellipse. The groups are merged if either directed edge intensity exceeds 50%
+of the experimental DI intensity at the neighbouring peak centre.
+
+This preserves the original geometric grouping and only adds merges. The test
+prints "FIT grouping: merging peaks ... because DI remains high at the ROI edge"
+for merges introduced by this heuristic.
+
+The FUDA-style per-peak .out files now additionally report sig1(Hz), lor1(Hz),
+sig2(Hz), and lor2(Hz), while retaining the existing mixed w1/w2 and g1/g2
+fields. The accompanying decon GUI build displays and saves these raw widths in
+out.tab; FUDA files that do not contain these fields simply leave them blank.

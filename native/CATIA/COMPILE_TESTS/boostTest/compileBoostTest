@@ -1,0 +1,26 @@
+#g++-6 boost_test.cpp -o boost_test.out -L/usr/local/include/boost -lboost_regex-mt
+
+#g++-6 -Wall -O3 -DMAC_OS_X -I/Users/ajb204/soft/Catia_devel/include/ -I/usr/local/include/ -c boost_test.cpp
+
+#g++-10 -Wall -O3 -DMAC_OS_X  -I/usr/local/include -I/Users/andrewbaldwin/softOld/Catia_devel/boost-numeric-bindings -c boost_test.cpp
+
+#g++-10 -Wall -O3 -DMAC_OS_X  -I/usr/local/include -I/Users/andrewbaldwin/softOld/Catia_devel/include -c boost_test2.cpp
+
+#g++-10 -Wall -O3 -DMAC_OS_X  -I/usr/local/include -I/Users/andrewbaldwin/softOld/Catia_devel/NEWBIND/boost-numeric-bindings -c boost_test.cpp
+#g++-10 -Wall -O3 -DMAC_OS_X  -I/usr/local/include -I/Users/andrewbaldwin/softOld/Catia_devel/include -c boost_test.cpp
+#g++-10 -Wall -O3 -DMAC_OS_X  -I/usr/local/include  -c boost_test.cpp
+#g++-10 -Wall -O3 -DMAC_OS_X  -I/usr/local/include  -c boost_test.cpp
+
+#g++-10 -Wall -O3 -DMAC_OS_X  -I/usr/local/include -I/usr/local/include/boost-numeric-bindings -c boost_test2.cpp
+
+#g++-10 -Wall -O3 -DMAC_OS_X  -I/usr/local/include  -c boost_test.cpp
+
+
+#clang++ -Wall -O3 -Iinclude  -c boost_test.cpp
+#clang++ -Wall -O3 -I/usr/local/include -Iinclude  -c boost_test.cpp
+
+
+
+g++ -c boost_test.cpp  -std=c++11 -I../../OLD/include -DHAVE_LAPACK_CONFIG_H -DLAPACK_COMPLEX_CPP -I/usr/local/opt/lapack/include -I../OLD/NEWBIND/boost-numeric-bindings -L/usr/local/gfortran/lib -llapacke  -llapack -lblas -lgfortran -lm
+
+#g++ dgels_test.o -I../../OLD/include -L/usr/local/opt/lapack/lib  -L/usr/local/gfortran/lib -llapacke  -llapack -lblas -lgfortran -lm

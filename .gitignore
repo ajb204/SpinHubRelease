@@ -1,0 +1,68 @@
+# macOS / Finder
+.DS_Store
+._*
+.AppleDouble
+.LSOverride
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Build and distribution output
+.build/
+build/
+dist/
+*.dmg
+*.pkg
+*.app/
+
+# Native compiler output
+*.o
+*.obj
+*.lo
+*.la
+*.a
+*.dylib
+*.so
+*.dll
+*.exe
+*.out
+*.dSYM/
+
+# Generated project runtime binaries. Keep source launchers.
+bin/*
+!bin/.gitkeep
+!bin/spinDecon
+!bin/spinHub
+extern/libs/*
+!extern/libs/.gitkeep
+
+# Autotools/configure output generated inside vendored dependencies
+extern/fftw-3.3.10/config.log
+extern/fftw-3.3.10/config.status
+extern/fftw-3.3.10/Makefile
+extern/liblbfgs-1.10/config.log
+extern/liblbfgs-1.10/config.status
+extern/liblbfgs-1.10/Makefile
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp

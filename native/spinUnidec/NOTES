@@ -1,0 +1,35 @@
+31st March 2025:
+
+Comparing decon_Darwin_i386 with decon_Darwin_i386_uSTA
+on the 1mM BSA dataset in the release. The convergence
+is not identical though the result is.
+
+Differences:
+
+swapped in Protocol1D from the uSTA version, to current.
+Some differences.
+
+In some places, comparing doubles and floats to 0 fails, but
+comparing to 0.0 works. This is probably a compiler issue.
+Going through the code to check this.
+
+The uSTA version behaves more similarly to current if I use doubles
+for the fourier transforms, not the default floats.
+
+Some changes in the maxima function.
+
+ffast-math added, but not checked against the benchmark: this could lead
+to problems down the line. need to carefully look at this.
+
+Gon through code to make sure there are no float/double comaprisons to 0, instead to 0.0
+
+Made protocol1D file look like src_decon version. This means adjusting
+the read in values from the command line to minus 1, a couple of comments
+, making squash_window_i, commenitng the squash adjustment.
+
+the Binit read in is set to a 1 column file, not a correlate.3 file.
+
+maxiter is set to 1k, and convVal set to 1E-4.
+
+
+

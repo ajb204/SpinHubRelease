@@ -1,0 +1,36 @@
+Protocol3P initial implementation
+=================================
+
+Purpose
+-------
+Physical 3D NMRPipe data with exactly two spectral dimensions and one real/pseudo axis.
+Protocol3P is deliberately recon-only in this first implementation.
+
+GUI interface
+-------------
+The main Recon button silently writes `pseudo3D 1` to decon.init when the loaded dataset is
+identified as physical 3P.  It uses the Reference 2D peak list, not the Full nD list. No new
+GUI widget was added.
+
+Fit model
+---------
+The existing normalized shared-width 2D FIT model is retained, including spinUnidec's g
+convention (g=0 Gaussian, g=1 Lorentzian) and the digital-sampling linewidth restraint.
+A summed 2D projection over the pseudo axis is used to determine one common spectral shape
+(f01,w1,g1,f02,w2,g2) for each peak. With those shapes fixed, amplitudes are solved by linear
+least squares independently in every pseudo slice, including overlap groups. Thus no peak
+position or linewidth exists along the pseudo dimension.
+
+Output
+------
+fit/<peak>.out contains the common shape followed by pseudo-coordinate, intensity and
+intensity ESD rows. fit/<peak>.dat contains FUDA-style F2/F1/Data/Calc blocks for all slices.
+Shape ESDs remain NaN, consistent with the current spinUnidec 2D FIT output; slice intensity
+ESDs are estimated from the fixed-shape least-squares covariance.
+
+Current layout assumption
+-------------------------
+The canonical physical 3P files produced/used by decon have the real/pseudo axis as the slow
+NMRPipe dimension (labels[2]), with the two spectral axes labels[1] and labels[0]. This is the
+test target requested here. Supporting a pseudo axis in an arbitrary physical dimension can
+be added later without changing the fitting model.

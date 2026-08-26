@@ -1,0 +1,27 @@
+Live deconvolution convergence output
+=====================================
+
+Implemented behaviour:
+- <input spectrum>.conv is opened once, truncated for a new process, and kept open.
+- Every ApplyIter iteration records: <system iteration> <fractional convergence>.
+- systemIter never resets across repeated DoRun calls in a protocol.
+- The existing local DoRun iteration counter is unchanged, so maxIter retains
+  its existing per-DoRun meaning.
+- Output uses buffered '\n' writes, flushes every 100 system iterations, and
+  force-flushes at the end of each DoRun.
+
+Build note from this test environment:
+The supplied project Makefile was invoked, but the unmodified project currently
+fails earlier compilation units because several headers rely on transitive
+standard-library includes (vector/math/cstring). Those errors precede and are
+unrelated to the convergence-monitor changes. The Python-side modified files
+were syntax-checked successfully.
+
+Protocol event markup update:
+- .conv files now contain sparse comment records such as:
+    # EVENT\t1250\tSquash\tdim=3\tmode=1\tpeaks=842
+- Events are emitted for DoRun start/end, Squash, Cull, and SetPeaks/peak-shape updates.
+- Event records are flushed immediately because they are rare; per-iteration numeric records retain buffered/batched flushing.
+- Numeric records remain unchanged as two columns: system_iteration convergence.
+
+2026-08 update: numeric .conv records are now "system_iteration<TAB>tack". The fractional convergence calculation is retained unchanged for DoRun stopping logic and console reporting, so maxIter/convVal behaviour is unaffected. Protocol # EVENT records are unchanged.

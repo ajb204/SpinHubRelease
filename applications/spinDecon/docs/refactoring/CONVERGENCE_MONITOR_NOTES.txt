@@ -1,0 +1,20 @@
+Live deconvolution convergence monitor
+======================================
+
+Implemented behaviour:
+- Decon launch windows optionally show a live log-scale convergence plot.
+- The plot tails <input spectrum>.conv incrementally once per second.
+- The GUI never rereads the complete file and caps plotted points at about 5000.
+- Stale .conv files are removed immediately before a decon launch.
+- Both main-window and PeakFrame launches are covered through the centralized
+  OnButtonDecon / DeconService path.
+
+The paired C++ project writes the .conv sidecar file.
+
+Protocol event markup update:
+- The live plot now parses '# EVENT' records from the .conv file.
+- DoRun boundaries, Squash, Cull, and peak-shape updates are drawn as labelled vertical markers.
+- Multiple events at the same system iteration are combined at one marker.
+- Numeric convergence parsing remains backward-compatible with older two-column .conv files.
+
+2026-08 update: decon progress windows now use Graph/Shell Output radio buttons sharing the main display area. Graph is selected by default. Shell output continues to be collected while hidden. The plotted numeric value is now the absolute system-state value returned by ApplyIter (tack), not fractional convergence; the plot therefore uses a linear y-axis.

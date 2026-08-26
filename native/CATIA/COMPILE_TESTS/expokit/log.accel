@@ -1,0 +1,1126 @@
+fdafas
+
+n:   2
+prodNew:  0.00059
+prod:     0.00192
+speedUp:  3.25424
+
+complex test : 0 diag: 6 err: 0
+
+n:   2
+Realexpm_pad:    0.007186
+expokit_pad:     0.000479
+expm_eig:        0.000357
+speedUpEig:      20.1289
+speedUpExpokit:  15.0021
+Expokit/Eig:     0.745303
+Complexexpm_pad: 0.007149
+expokit_pad:     0.000481
+expm_eig:        0.000907
+speedUpEig:      7.88203
+speedUpExpokit:  14.8628
+Expokit/Eig:     1.89353
+real test : 2.68333e-16 diag: 2 err: 1.34167e-16
+real test : 2.68333e-16 diag: 2 err: 1.34167e-16
+complex test : 3.15311e-16 diag: 2 err: 1.57656e-16
+complex test : 3.56675e-14 diag: 2 err: 1.78338e-14
+fdafas
+
+n:   3
+prodNew:  0.000653
+prod:     0.003311
+speedUp:  5.07044
+
+complex test : 0 diag: 51 err: 0
+
+n:   3
+Realexpm_pad:    0.013203
+expokit_pad:     0.000527
+expm_eig:        0.000547
+speedUpEig:      24.1371
+speedUpExpokit:  25.0531
+Expokit/Eig:     1.03795
+Complexexpm_pad: 0.013962
+expokit_pad:     0.000609
+expm_eig:        0.001365
+speedUpEig:      10.2286
+speedUpExpokit:  22.9261
+Expokit/Eig:     2.59013
+real test : 7.02368e-16 diag: 2.99999 err: 2.34124e-16
+real test : 7.02362e-16 diag: 2.99999 err: 2.34122e-16
+complex test : 4.29177e-16 diag: 2.99999 err: 1.4306e-16
+complex test : 1.60565e-13 diag: 2.99999 err: 5.3522e-14
+fdafas
+
+n:   4
+prodNew:  0.000521
+prod:     0.004967
+speedUp:  9.53359
+
+complex test : 0 diag: 224 err: 0
+
+n:   4
+Realexpm_pad:    0.021997
+expokit_pad:     0.000459
+expm_eig:        0.001541
+speedUpEig:      14.2745
+speedUpExpokit:  47.9237
+Expokit/Eig:     3.3573
+Complexexpm_pad: 0.023891
+expokit_pad:     0.001143
+expm_eig:        0.00179
+speedUpEig:      13.3469
+speedUpExpokit:  20.902
+Expokit/Eig:     3.89978
+real test : 1.11454e-15 diag: 3.99997 err: 2.78638e-16
+real test : 1.11454e-15 diag: 3.99997 err: 2.78638e-16
+complex test : 1.27967e-15 diag: 3.99997 err: 3.1992e-16
+complex test : 4.85668e-13 diag: 3.99997 err: 1.21418e-13
+fdafas
+
+n:   5
+prodNew:  0.000644
+prod:     0.007138
+speedUp:  11.0839
+
+complex test : 0 diag: 700 err: 0
+
+n:   5
+Realexpm_pad:    0.037689
+expokit_pad:     0.001028
+expm_eig:        0.0011
+speedUpEig:      34.2627
+speedUpExpokit:  36.6625
+Expokit/Eig:     1.07004
+Complexexpm_pad: 0.040295
+expokit_pad:     0.001181
+expm_eig:        0.002684
+speedUpEig:      15.013
+speedUpExpokit:  34.1194
+Expokit/Eig:     2.61089
+real test : 2.46594e-15 diag: 4.99994 err: 4.93195e-16
+real test : 2.46593e-15 diag: 4.99994 err: 4.93192e-16
+complex test : 4.38658e-15 diag: 4.99994 err: 8.77326e-16
+complex test : 1.1602e-12 diag: 4.99994 err: 2.32043e-13
+fdafas
+
+n:   6
+prodNew:  0.000598
+prod:     0.008883
+speedUp:  14.8545
+
+complex test : 0 diag: 1770 err: 0
+
+n:   6
+Realexpm_pad:    0.056032
+expokit_pad:     0.000813
+expm_eig:        0.001396
+speedUpEig:      40.1375
+speedUpExpokit:  68.92
+Expokit/Eig:     1.7171
+Complexexpm_pad: 0.057397
+expokit_pad:     0.001669
+expm_eig:        0.003005
+speedUpEig:      19.1005
+speedUpExpokit:  34.3901
+Expokit/Eig:     3.69619
+real test : 4.04567e-15 diag: 5.99989 err: 6.74291e-16
+real test : 4.04569e-15 diag: 5.99989 err: 6.74294e-16
+complex test : 5.32213e-15 diag: 5.99989 err: 8.87039e-16
+complex test : 2.37825e-12 diag: 5.99989 err: 3.96382e-13
+fdafas
+
+n:   7
+prodNew:  0.000583
+prod:     0.010744
+speedUp:  18.4288
+
+complex test : 0 diag: 3871 err: 0
+
+n:   7
+Realexpm_pad:    0.078719
+expokit_pad:     0.001065
+expm_eig:        0.001703
+speedUpEig:      46.2237
+speedUpExpokit:  73.9146
+Expokit/Eig:     1.59906
+Complexexpm_pad: 0.080241
+expokit_pad:     0.002182
+expm_eig:        0.004086
+speedUpEig:      19.638
+speedUpExpokit:  36.7741
+Expokit/Eig:     3.83662
+real test : 4.01628e-15 diag: 6.99983 err: 5.73768e-16
+real test : 4.0163e-15 diag: 6.99983 err: 5.73772e-16
+complex test : 5.15947e-15 diag: 6.99983 err: 7.37086e-16
+complex test : 4.37288e-12 diag: 6.99983 err: 6.24713e-13
+fdafas
+
+n:   8
+prodNew:  0.000577
+prod:     0.013543
+speedUp:  23.4714
+
+complex test : 0 diag: 7616 err: 0
+
+n:   8
+Realexpm_pad:    0.102277
+expokit_pad:     0.000745
+expm_eig:        0.002108
+speedUpEig:      48.5185
+speedUpExpokit:  137.285
+Expokit/Eig:     2.82953
+Complexexpm_pad: 0.115798
+expokit_pad:     0.003083
+expm_eig:        0.004619
+speedUpEig:      25.0699
+speedUpExpokit:  37.5602
+Expokit/Eig:     6.2
+real test : 8.58062e-15 diag: 7.99974 err: 1.07261e-15
+real test : 8.5806e-15 diag: 7.99974 err: 1.07261e-15
+complex test : 8.52823e-15 diag: 7.99974 err: 1.06606e-15
+complex test : 7.4249e-12 diag: 7.99974 err: 9.28142e-13
+fdafas
+
+n:   9
+prodNew:  0.0007
+prod:     0.016773
+speedUp:  23.9614
+
+complex test : 0 diag: 13824 err: 0
+
+n:   9
+Realexpm_pad:    0.138694
+expokit_pad:     0.001592
+expm_eig:        0.002602
+speedUpEig:      53.3028
+speedUpExpokit:  87.1193
+Expokit/Eig:     1.63442
+Complexexpm_pad: 0.177697
+expokit_pad:     0.004014
+expm_eig:        0.006531
+speedUpEig:      27.2082
+speedUpExpokit:  44.2693
+Expokit/Eig:     4.10239
+real test : 1.04748e-14 diag: 8.99963 err: 1.16391e-15
+real test : 1.04749e-14 diag: 8.99963 err: 1.16393e-15
+complex test : 1.8355e-14 diag: 8.99963 err: 2.03953e-15
+complex test : 1.18523e-11 diag: 8.99963 err: 1.31697e-12
+fdafas
+
+n:   10
+prodNew:  0.000785
+prod:     0.023504
+speedUp:  29.9414
+
+complex test : 0 diag: 23550 err: 0
+
+n:   10
+Realexpm_pad:    0.194316
+expokit_pad:     0.00146
+expm_eig:        0.003746
+speedUpEig:      51.8729
+speedUpExpokit:  133.093
+Expokit/Eig:     2.56575
+Complexexpm_pad: 0.200096
+expokit_pad:     0.004269
+expm_eig:        0.007464
+speedUpEig:      26.8081
+speedUpExpokit:  46.8719
+Expokit/Eig:     5.11233
+real test : 1.04744e-14 diag: 9.9995 err: 1.04749e-15
+real test : 1.04746e-14 diag: 9.9995 err: 1.04751e-15
+complex test : 5.34926e-14 diag: 9.9995 err: 5.34953e-15
+complex test : 1.80222e-11 diag: 9.9995 err: 1.80231e-12
+fdafas
+
+n:   11
+prodNew:  0.000966
+prod:     0.026301
+speedUp:  27.2267
+
+complex test : 0 diag: 38115 err: 0
+
+n:   11
+Realexpm_pad:    0.23213
+expokit_pad:     0.002315
+expm_eig:        0.004338
+speedUpEig:      53.5108
+speedUpExpokit:  100.272
+Expokit/Eig:     1.87387
+Complexexpm_pad: 0.258449
+expokit_pad:     0.004896
+expm_eig:        0.010056
+speedUpEig:      25.701
+speedUpExpokit:  52.7878
+Expokit/Eig:     4.34384
+real test : 2.03993e-14 diag: 10.9993 err: 1.85459e-15
+real test : 2.03996e-14 diag: 10.9993 err: 1.85462e-15
+complex test : 4.08866e-14 diag: 10.9993 err: 3.71719e-15
+complex test : 2.63364e-11 diag: 10.9993 err: 2.39437e-12
+fdafas
+
+n:   12
+prodNew:  0.000819
+prod:     0.029449
+speedUp:  35.9573
+
+complex test : 0 diag: 59136 err: 0
+
+n:   12
+Realexpm_pad:    0.299596
+expokit_pad:     0.001403
+expm_eig:        0.00447
+speedUpEig:      67.0237
+speedUpExpokit:  213.54
+Expokit/Eig:     3.18603
+Complexexpm_pad: 0.322218
+expokit_pad:     0.005601
+expm_eig:        0.010673
+speedUpEig:      30.19
+speedUpExpokit:  57.5287
+Expokit/Eig:     7.60727
+real test : 2.65022e-14 diag: 11.9991 err: 2.20868e-15
+real test : 2.65022e-14 diag: 11.9991 err: 2.20868e-15
+complex test : 2.5386e-14 diag: 11.9991 err: 2.11565e-15
+complex test : 3.72437e-11 diag: 11.9991 err: 3.10387e-12
+fdafas
+
+n:   13
+prodNew:  0.000822
+prod:     0.032546
+speedUp:  39.5937
+
+complex test : 0 diag: 88556 err: 0
+
+n:   13
+Realexpm_pad:    0.381294
+expokit_pad:     0.002729
+expm_eig:        0.005666
+speedUpEig:      67.2951
+speedUpExpokit:  139.719
+Expokit/Eig:     2.07622
+Complexexpm_pad: 0.4167
+expokit_pad:     0.007252
+expm_eig:        0.013973
+speedUpEig:      29.8218
+speedUpExpokit:  57.46
+Expokit/Eig:     5.12019
+real test : 7.74568e-14 diag: 12.9989 err: 5.95872e-15
+real test : 7.74575e-14 diag: 12.9989 err: 5.95877e-15
+complex test : 5.57094e-14 diag: 12.9989 err: 4.2857e-15
+complex test : 5.12322e-11 diag: 12.9989 err: 3.94127e-12
+fdafas
+
+n:   14
+prodNew:  0.000821
+prod:     0.040682
+speedUp:  49.5518
+
+complex test : 0 diag: 128674 err: 0
+
+n:   14
+Realexpm_pad:    0.46788
+expokit_pad:     0.002855
+expm_eig:        0.006608
+speedUpEig:      70.8051
+speedUpExpokit:  163.881
+Expokit/Eig:     2.31454
+Complexexpm_pad: 0.527829
+expokit_pad:     0.008735
+expm_eig:        0.015367
+speedUpEig:      34.3482
+speedUpExpokit:  60.4269
+Expokit/Eig:     5.38249
+real test : 5.12765e-14 diag: 13.9986 err: 3.66297e-15
+real test : 5.12761e-14 diag: 13.9986 err: 3.66294e-15
+complex test : 8.07745e-14 diag: 13.9986 err: 5.77018e-15
+complex test : 6.88364e-11 diag: 13.9986 err: 4.91737e-12
+fdafas
+
+n:   15
+prodNew:  0.001082
+prod:     0.042854
+speedUp:  39.6063
+
+complex test : 0 diag: 182175 err: 0
+
+n:   15
+Realexpm_pad:    0.551006
+expokit_pad:     0.003514
+expm_eig:        0.007154
+speedUpEig:      77.0207
+speedUpExpokit:  156.803
+Expokit/Eig:     2.03586
+Complexexpm_pad: 0.586856
+expokit_pad:     0.01007
+expm_eig:        0.019149
+speedUpEig:      30.6468
+speedUpExpokit:  58.2777
+Expokit/Eig:     5.44935
+real test : 6.30142e-14 diag: 14.9983 err: 4.20142e-15
+real test : 6.30142e-14 diag: 14.9983 err: 4.20142e-15
+complex test : 1.00077e-13 diag: 14.9983 err: 6.67255e-15
+complex test : 9.06241e-11 diag: 14.9983 err: 6.04229e-12
+fdafas
+
+n:   16
+prodNew:  0.000852
+prod:     0.047972
+speedUp:  56.3052
+
+complex test : 0 diag: 252160 err: 0
+
+n:   16
+Realexpm_pad:    0.695051
+expokit_pad:     0.002984
+expm_eig:        0.008274
+speedUpEig:      84.0042
+speedUpExpokit:  232.926
+Expokit/Eig:     2.77279
+Complexexpm_pad: 0.704299
+expokit_pad:     0.012011
+expm_eig:        0.01982
+speedUpEig:      35.5348
+speedUpExpokit:  58.6378
+Expokit/Eig:     6.64209
+real test : 1.32548e-13 diag: 15.9979 err: 8.28533e-15
+real test : 1.32548e-13 diag: 15.9979 err: 8.2853e-15
+complex test : 8.13586e-14 diag: 15.9979 err: 5.08557e-15
+complex test : 1.17211e-10 diag: 15.9979 err: 7.32663e-12
+fdafas
+
+n:   2
+prodNew:  0.000552
+prod:     0.001569
+speedUp:  2.84239
+
+complex test : 0 diag: 6 err: 0
+
+n:   2
+Realexpm_pad:    0.010508
+expokit_pad:     0.0006
+expm_eig:        0.000379
+speedUpEig:      27.7256
+speedUpExpokit:  17.5133
+Expokit/Eig:     0.631667
+Complexexpm_pad: 0.010752
+expokit_pad:     0.000668
+expm_eig:        0.001188
+speedUpEig:      9.05051
+speedUpExpokit:  16.0958
+Expokit/Eig:     1.98
+real test : 2.68333e-16 diag: 2 err: 1.34167e-16
+real test : 2.68333e-16 diag: 2 err: 1.34167e-16
+complex test : 3.15311e-16 diag: 2 err: 1.57656e-16
+complex test : 3.56675e-14 diag: 2 err: 1.78338e-14
+fdafas
+
+n:   3
+prodNew:  0.000513
+prod:     0.002483
+speedUp:  4.84016
+
+complex test : 0 diag: 51 err: 0
+
+n:   3
+Realexpm_pad:    0.021353
+expokit_pad:     0.000856
+expm_eig:        0.000643
+speedUpEig:      33.2084
+speedUpExpokit:  24.9451
+Expokit/Eig:     0.751168
+Complexexpm_pad: 0.022278
+expokit_pad:     0.00099
+expm_eig:        0.001603
+speedUpEig:      13.8977
+speedUpExpokit:  22.503
+Expokit/Eig:     1.87266
+real test : 7.02368e-16 diag: 2.99999 err: 2.34124e-16
+real test : 7.02362e-16 diag: 2.99999 err: 2.34122e-16
+complex test : 4.29177e-16 diag: 2.99999 err: 1.4306e-16
+complex test : 1.60565e-13 diag: 2.99999 err: 5.3522e-14
+fdafas
+
+n:   4
+prodNew:  0.000572
+prod:     0.003827
+speedUp:  6.69056
+
+complex test : 0 diag: 224 err: 0
+
+n:   4
+Realexpm_pad:    0.044369
+expokit_pad:     0.001159
+expm_eig:        0.000825
+speedUpEig:      53.7806
+speedUpExpokit:  38.2821
+Expokit/Eig:     0.711821
+Complexexpm_pad: 0.042249
+expokit_pad:     0.001439
+expm_eig:        0.00226
+speedUpEig:      18.6942
+speedUpExpokit:  29.36
+Expokit/Eig:     1.94996
+real test : 1.11454e-15 diag: 3.99997 err: 2.78638e-16
+real test : 1.11454e-15 diag: 3.99997 err: 2.78638e-16
+complex test : 1.27967e-15 diag: 3.99997 err: 3.1992e-16
+complex test : 4.85668e-13 diag: 3.99997 err: 1.21418e-13
+fdafas
+
+n:   5
+prodNew:  0.000598
+prod:     0.005918
+speedUp:  9.89632
+
+complex test : 0 diag: 700 err: 0
+
+n:   5
+Realexpm_pad:    0.066242
+expokit_pad:     0.00137
+expm_eig:        0.00151
+speedUpEig:      43.8689
+speedUpExpokit:  48.3518
+Expokit/Eig:     1.10219
+Complexexpm_pad: 0.069531
+expokit_pad:     0.002093
+expm_eig:        0.003146
+speedUpEig:      22.1014
+speedUpExpokit:  33.2207
+Expokit/Eig:     2.29635
+real test : 2.46594e-15 diag: 4.99994 err: 4.93195e-16
+real test : 2.46593e-15 diag: 4.99994 err: 4.93192e-16
+complex test : 4.38658e-15 diag: 4.99994 err: 8.77326e-16
+complex test : 1.1602e-12 diag: 4.99994 err: 2.32043e-13
+fdafas
+
+n:   6
+prodNew:  0.000684
+prod:     0.007613
+speedUp:  11.1301
+
+complex test : 0 diag: 1770 err: 0
+
+n:   6
+Realexpm_pad:    0.096719
+expokit_pad:     0.001572
+expm_eig:        0.002063
+speedUpEig:      46.8827
+speedUpExpokit:  61.5261
+Expokit/Eig:     1.31234
+Complexexpm_pad: 0.106088
+expokit_pad:     0.003069
+expm_eig:        0.004026
+speedUpEig:      26.3507
+speedUpExpokit:  34.5676
+Expokit/Eig:     2.56107
+real test : 4.04567e-15 diag: 5.99989 err: 6.74291e-16
+real test : 4.04569e-15 diag: 5.99989 err: 6.74294e-16
+complex test : 5.32213e-15 diag: 5.99989 err: 8.87039e-16
+complex test : 2.37825e-12 diag: 5.99989 err: 3.96382e-13
+fdafas
+
+n:   7
+prodNew:  0.000687
+prod:     0.009736
+speedUp:  14.1718
+
+complex test : 0 diag: 3871 err: 0
+
+n:   7
+Realexpm_pad:    0.146545
+expokit_pad:     0.002047
+expm_eig:        0.002361
+speedUpEig:      62.069
+speedUpExpokit:  71.5901
+Expokit/Eig:     1.1534
+Complexexpm_pad: 0.15532
+expokit_pad:     0.00426
+expm_eig:        0.005569
+speedUpEig:      27.8901
+speedUpExpokit:  36.4601
+Expokit/Eig:     2.72057
+real test : 4.01628e-15 diag: 6.99983 err: 5.73768e-16
+real test : 4.0163e-15 diag: 6.99983 err: 5.73772e-16
+complex test : 5.15947e-15 diag: 6.99983 err: 7.37086e-16
+complex test : 4.37288e-12 diag: 6.99983 err: 6.24713e-13
+fdafas
+
+n:   8
+prodNew:  0.000625
+prod:     0.012893
+speedUp:  20.6288
+
+complex test : 0 diag: 7616 err: 0
+
+n:   8
+Realexpm_pad:    0.210595
+expokit_pad:     0.001544
+expm_eig:        0.002983
+speedUpEig:      70.5984
+speedUpExpokit:  136.396
+Expokit/Eig:     1.93199
+Complexexpm_pad: 0.21636
+expokit_pad:     0.00489
+expm_eig:        0.005964
+speedUpEig:      36.2777
+speedUpExpokit:  44.2454
+Expokit/Eig:     3.86269
+real test : 8.58062e-15 diag: 7.99974 err: 1.07261e-15
+real test : 8.5806e-15 diag: 7.99974 err: 1.07261e-15
+complex test : 8.52823e-15 diag: 7.99974 err: 1.06606e-15
+complex test : 7.4249e-12 diag: 7.99974 err: 9.28142e-13
+fdafas
+
+n:   9
+prodNew:  0.000723
+prod:     0.016032
+speedUp:  22.1743
+
+complex test : 0 diag: 13824 err: 0
+
+n:   9
+Realexpm_pad:    0.270995
+expokit_pad:     0.002712
+expm_eig:        0.003651
+speedUpEig:      74.2249
+speedUpExpokit:  99.9244
+Expokit/Eig:     1.34624
+Complexexpm_pad: 0.305342
+expokit_pad:     0.008151
+expm_eig:        0.008699
+speedUpEig:      35.1008
+speedUpExpokit:  37.4607
+Expokit/Eig:     3.2076
+real test : 1.04748e-14 diag: 8.99963 err: 1.16391e-15
+real test : 1.04749e-14 diag: 8.99963 err: 1.16393e-15
+complex test : 1.8355e-14 diag: 8.99963 err: 2.03953e-15
+complex test : 1.18523e-11 diag: 8.99963 err: 1.31697e-12
+fdafas
+
+n:   10
+prodNew:  0.000817
+prod:     0.021043
+speedUp:  25.7564
+
+complex test : 0 diag: 23550 err: 0
+
+n:   10
+Realexpm_pad:    0.401634
+expokit_pad:     0.003038
+expm_eig:        0.0048
+speedUpEig:      83.6737
+speedUpExpokit:  132.203
+Expokit/Eig:     1.57999
+Complexexpm_pad: 0.405146
+expokit_pad:     0.009234
+expm_eig:        0.01061
+speedUpEig:      38.1853
+speedUpExpokit:  43.8755
+Expokit/Eig:     3.49243
+real test : 1.04744e-14 diag: 9.9995 err: 1.04749e-15
+real test : 1.04746e-14 diag: 9.9995 err: 1.04751e-15
+complex test : 5.34926e-14 diag: 9.9995 err: 5.34953e-15
+complex test : 1.80222e-11 diag: 9.9995 err: 1.80231e-12
+fdafas
+
+n:   11
+prodNew:  0.001117
+prod:     0.026219
+speedUp:  23.4727
+
+complex test : 0 diag: 38115 err: 0
+
+n:   11
+Realexpm_pad:    0.471243
+expokit_pad:     0.003991
+expm_eig:        0.006178
+speedUpEig:      76.2776
+speedUpExpokit:  118.076
+Expokit/Eig:     1.54798
+Complexexpm_pad: 0.514558
+expokit_pad:     0.010088
+expm_eig:        0.014185
+speedUpEig:      36.2748
+speedUpExpokit:  51.0069
+Expokit/Eig:     3.55425
+real test : 2.03993e-14 diag: 10.9993 err: 1.85459e-15
+real test : 2.03996e-14 diag: 10.9993 err: 1.85462e-15
+complex test : 4.08866e-14 diag: 10.9993 err: 3.71719e-15
+complex test : 2.63364e-11 diag: 10.9993 err: 2.39437e-12
+fdafas
+
+n:   12
+prodNew:  0.000718
+prod:     0.028483
+speedUp:  39.6699
+
+complex test : 0 diag: 59136 err: 0
+
+n:   12
+Realexpm_pad:    0.613161
+expokit_pad:     0.002886
+expm_eig:        0.006295
+speedUpEig:      97.4044
+speedUpExpokit:  212.46
+Expokit/Eig:     2.18122
+Complexexpm_pad: 0.644829
+expokit_pad:     0.011375
+expm_eig:        0.01355
+speedUpEig:      47.5889
+speedUpExpokit:  56.6883
+Expokit/Eig:     4.69508
+real test : 2.65022e-14 diag: 11.9991 err: 2.20868e-15
+real test : 2.65022e-14 diag: 11.9991 err: 2.20868e-15
+complex test : 2.5386e-14 diag: 11.9991 err: 2.11565e-15
+complex test : 3.72437e-11 diag: 11.9991 err: 3.10387e-12
+fdafas
+
+n:   13
+prodNew:  0.00076
+prod:     0.03253
+speedUp:  42.8026
+
+complex test : 0 diag: 88556 err: 0
+
+n:   13
+Realexpm_pad:    0.724871
+expokit_pad:     0.005209
+expm_eig:        0.007828
+speedUpEig:      92.5998
+speedUpExpokit:  139.157
+Expokit/Eig:     1.50278
+Complexexpm_pad: 0.795171
+expokit_pad:     0.014138
+expm_eig:        0.018864
+speedUpEig:      42.1528
+speedUpExpokit:  56.2435
+Expokit/Eig:     3.62142
+real test : 7.74568e-14 diag: 12.9989 err: 5.95872e-15
+real test : 7.74575e-14 diag: 12.9989 err: 5.95877e-15
+complex test : 5.57094e-14 diag: 12.9989 err: 4.2857e-15
+complex test : 5.12322e-11 diag: 12.9989 err: 3.94127e-12
+fdafas
+
+n:   14
+prodNew:  0.000819
+prod:     0.037159
+speedUp:  45.3712
+
+complex test : 0 diag: 128674 err: 0
+
+n:   14
+Realexpm_pad:    0.903368
+expokit_pad:     0.006155
+expm_eig:        0.009666
+speedUpEig:      93.4583
+speedUpExpokit:  146.77
+Expokit/Eig:     1.57043
+Complexexpm_pad: 0.984454
+expokit_pad:     0.016815
+expm_eig:        0.022788
+speedUpEig:      43.2005
+speedUpExpokit:  58.5462
+Expokit/Eig:     3.70236
+real test : 5.12765e-14 diag: 13.9986 err: 3.66297e-15
+real test : 5.12761e-14 diag: 13.9986 err: 3.66294e-15
+complex test : 8.07745e-14 diag: 13.9986 err: 5.77018e-15
+complex test : 6.88364e-11 diag: 13.9986 err: 4.91737e-12
+fdafas
+
+n:   15
+prodNew:  0.00091
+prod:     0.045946
+speedUp:  50.4901
+
+complex test : 0 diag: 182175 err: 0
+
+n:   15
+Realexpm_pad:    1.15807
+expokit_pad:     0.00702
+expm_eig:        0.011132
+speedUpEig:      104.031
+speedUpExpokit:  164.968
+Expokit/Eig:     1.58575
+Complexexpm_pad: 1.22538
+expokit_pad:     0.021826
+expm_eig:        0.025865
+speedUpEig:      47.3761
+speedUpExpokit:  56.1433
+Expokit/Eig:     3.68447
+real test : 6.30142e-14 diag: 14.9983 err: 4.20142e-15
+real test : 6.30142e-14 diag: 14.9983 err: 4.20142e-15
+complex test : 1.00077e-13 diag: 14.9983 err: 6.67255e-15
+complex test : 9.06241e-11 diag: 14.9983 err: 6.04229e-12
+fdafas
+
+n:   16
+prodNew:  0.000839
+prod:     0.051381
+speedUp:  61.2408
+
+complex test : 0 diag: 252160 err: 0
+
+n:   16
+Realexpm_pad:    1.36044
+expokit_pad:     0.005963
+expm_eig:        0.012655
+speedUpEig:      107.502
+speedUpExpokit:  228.146
+Expokit/Eig:     2.12225
+Complexexpm_pad: 1.40776
+expokit_pad:     0.025238
+expm_eig:        0.026336
+speedUpEig:      53.4538
+speedUpExpokit:  55.7794
+Expokit/Eig:     4.41657
+real test : 1.32548e-13 diag: 15.9979 err: 8.28533e-15
+real test : 1.32548e-13 diag: 15.9979 err: 8.2853e-15
+complex test : 8.13586e-14 diag: 15.9979 err: 5.08557e-15
+complex test : 1.17211e-10 diag: 15.9979 err: 7.32663e-12
+fdafas
+
+n:   2
+prodNew:  0.000542
+prod:     0.001849
+speedUp:  3.41144
+
+complex test : 0 diag: 6 err: 0
+
+n:   2
+Realexpm_pad:    0.017892
+expokit_pad:     0.00095
+expm_eig:        0.000375
+speedUpEig:      47.712
+speedUpExpokit:  18.8337
+Expokit/Eig:     0.394737
+Complexexpm_pad: 0.018729
+expokit_pad:     0.000988
+expm_eig:        0.001616
+speedUpEig:      11.5897
+speedUpExpokit:  18.9565
+Expokit/Eig:     1.70105
+real test : 2.68333e-16 diag: 2 err: 1.34167e-16
+real test : 2.68333e-16 diag: 2 err: 1.34167e-16
+complex test : 3.15311e-16 diag: 2 err: 1.57656e-16
+complex test : 3.56675e-14 diag: 2 err: 1.78338e-14
+fdafas
+
+n:   3
+prodNew:  0.000482
+prod:     0.002504
+speedUp:  5.19502
+
+complex test : 0 diag: 51 err: 0
+
+n:   3
+Realexpm_pad:    0.032628
+expokit_pad:     0.001217
+expm_eig:        0.000705
+speedUpEig:      46.2809
+speedUpExpokit:  26.8102
+Expokit/Eig:     0.579293
+Complexexpm_pad: 0.034925
+expokit_pad:     0.001492
+expm_eig:        0.00219
+speedUpEig:      15.9475
+speedUpExpokit:  23.4082
+Expokit/Eig:     1.79951
+real test : 7.02368e-16 diag: 2.99999 err: 2.34124e-16
+real test : 7.02362e-16 diag: 2.99999 err: 2.34122e-16
+complex test : 4.29177e-16 diag: 2.99999 err: 1.4306e-16
+complex test : 1.60565e-13 diag: 2.99999 err: 5.3522e-14
+fdafas
+
+n:   4
+prodNew:  0.000546
+prod:     0.004019
+speedUp:  7.36081
+
+complex test : 0 diag: 224 err: 0
+
+n:   4
+Realexpm_pad:    0.058967
+expokit_pad:     0.001265
+expm_eig:        0.001096
+speedUpEig:      53.802
+speedUpExpokit:  46.6142
+Expokit/Eig:     0.866403
+Complexexpm_pad: 0.062136
+expokit_pad:     0.002108
+expm_eig:        0.002746
+speedUpEig:      22.6278
+speedUpExpokit:  29.4763
+Expokit/Eig:     2.17075
+real test : 1.11454e-15 diag: 3.99997 err: 2.78638e-16
+real test : 1.11454e-15 diag: 3.99997 err: 2.78638e-16
+complex test : 1.27967e-15 diag: 3.99997 err: 3.1992e-16
+complex test : 4.85668e-13 diag: 3.99997 err: 1.21418e-13
+fdafas
+
+n:   5
+prodNew:  0.000572
+prod:     0.005448
+speedUp:  9.52448
+
+complex test : 0 diag: 700 err: 0
+
+n:   5
+Realexpm_pad:    0.094585
+expokit_pad:     0.001981
+expm_eig:        0.001811
+speedUpEig:      52.2281
+speedUpExpokit:  47.7461
+Expokit/Eig:     0.914185
+Complexexpm_pad: 0.101495
+expokit_pad:     0.003177
+expm_eig:        0.004055
+speedUpEig:      25.0296
+speedUpExpokit:  31.9468
+Expokit/Eig:     2.04695
+real test : 2.46594e-15 diag: 4.99994 err: 4.93195e-16
+real test : 2.46593e-15 diag: 4.99994 err: 4.93192e-16
+complex test : 4.38658e-15 diag: 4.99994 err: 8.77326e-16
+complex test : 1.1602e-12 diag: 4.99994 err: 2.32043e-13
+fdafas
+
+n:   6
+prodNew:  0.000645
+prod:     0.007474
+speedUp:  11.5876
+
+complex test : 0 diag: 1770 err: 0
+
+n:   6
+Realexpm_pad:    0.144403
+expokit_pad:     0.002263
+expm_eig:        0.002265
+speedUpEig:      63.7541
+speedUpExpokit:  63.8104
+Expokit/Eig:     1.00088
+Complexexpm_pad: 0.160157
+expokit_pad:     0.004776
+expm_eig:        0.005198
+speedUpEig:      30.8113
+speedUpExpokit:  33.5337
+Expokit/Eig:     2.29695
+real test : 4.04567e-15 diag: 5.99989 err: 6.74291e-16
+real test : 4.04569e-15 diag: 5.99989 err: 6.74294e-16
+complex test : 5.32213e-15 diag: 5.99989 err: 8.87039e-16
+complex test : 2.37825e-12 diag: 5.99989 err: 3.96382e-13
+fdafas
+
+n:   7
+prodNew:  0.000657
+prod:     0.009947
+speedUp:  15.14
+
+complex test : 0 diag: 3871 err: 0
+
+n:   7
+Realexpm_pad:    0.220655
+expokit_pad:     0.003007
+expm_eig:        0.003118
+speedUpEig:      70.7681
+speedUpExpokit:  73.3804
+Expokit/Eig:     1.03691
+Complexexpm_pad: 0.22866
+expokit_pad:     0.005984
+expm_eig:        0.007487
+speedUpEig:      30.5409
+speedUpExpokit:  38.2119
+Expokit/Eig:     2.48986
+real test : 4.01628e-15 diag: 6.99983 err: 5.73768e-16
+real test : 4.0163e-15 diag: 6.99983 err: 5.73772e-16
+complex test : 5.15947e-15 diag: 6.99983 err: 7.37086e-16
+complex test : 4.37288e-12 diag: 6.99983 err: 6.24713e-13
+fdafas
+
+n:   8
+prodNew:  0.000684
+prod:     0.014069
+speedUp:  20.5687
+
+complex test : 0 diag: 7616 err: 0
+
+n:   8
+Realexpm_pad:    0.298693
+expokit_pad:     0.002245
+expm_eig:        0.004052
+speedUpEig:      73.715
+speedUpExpokit:  133.048
+Expokit/Eig:     1.8049
+Complexexpm_pad: 0.335177
+expokit_pad:     0.00769
+expm_eig:        0.007654
+speedUpEig:      43.7911
+speedUpExpokit:  43.5861
+Expokit/Eig:     3.40935
+real test : 8.58062e-15 diag: 7.99974 err: 1.07261e-15
+real test : 8.5806e-15 diag: 7.99974 err: 1.07261e-15
+complex test : 8.52823e-15 diag: 7.99974 err: 1.06606e-15
+complex test : 7.4249e-12 diag: 7.99974 err: 9.28142e-13
+fdafas
+
+n:   9
+prodNew:  0.000658
+prod:     0.017909
+speedUp:  27.2173
+
+complex test : 0 diag: 13824 err: 0
+
+n:   9
+Realexpm_pad:    0.419862
+expokit_pad:     0.00419
+expm_eig:        0.005309
+speedUpEig:      79.085
+speedUpExpokit:  100.206
+Expokit/Eig:     1.26706
+Complexexpm_pad: 0.445918
+expokit_pad:     0.009195
+expm_eig:        0.011179
+speedUpEig:      39.8889
+speedUpExpokit:  48.4957
+Expokit/Eig:     2.66802
+real test : 1.04748e-14 diag: 8.99963 err: 1.16391e-15
+real test : 1.04749e-14 diag: 8.99963 err: 1.16393e-15
+complex test : 1.8355e-14 diag: 8.99963 err: 2.03953e-15
+complex test : 1.18523e-11 diag: 8.99963 err: 1.31697e-12
+fdafas
+
+n:   10
+prodNew:  0.000665
+prod:     0.019651
+speedUp:  29.5504
+
+complex test : 0 diag: 23550 err: 0
+
+n:   10
+Realexpm_pad:    0.541262
+expokit_pad:     0.004319
+expm_eig:        0.005785
+speedUpEig:      93.563
+speedUpExpokit:  125.321
+Expokit/Eig:     1.33943
+Complexexpm_pad: 0.609975
+expokit_pad:     0.011142
+expm_eig:        0.012976
+speedUpEig:      47.0079
+speedUpExpokit:  54.7456
+Expokit/Eig:     3.0044
+real test : 1.04744e-14 diag: 9.9995 err: 1.04749e-15
+real test : 1.04746e-14 diag: 9.9995 err: 1.04751e-15
+complex test : 5.34926e-14 diag: 9.9995 err: 5.34953e-15
+complex test : 1.80222e-11 diag: 9.9995 err: 1.80231e-12
+fdafas
+
+n:   11
+prodNew:  0.000734
+prod:     0.023094
+speedUp:  31.4632
+
+complex test : 0 diag: 38115 err: 0
+
+n:   11
+Realexpm_pad:    0.721232
+expokit_pad:     0.00608
+expm_eig:        0.007116
+speedUpEig:      101.354
+speedUpExpokit:  118.624
+Expokit/Eig:     1.17039
+Complexexpm_pad: 0.801203
+expokit_pad:     0.019282
+expm_eig:        0.017783
+speedUpEig:      45.0544
+speedUpExpokit:  41.5519
+Expokit/Eig:     2.92484
+real test : 2.03993e-14 diag: 10.9993 err: 1.85459e-15
+real test : 2.03996e-14 diag: 10.9993 err: 1.85462e-15
+complex test : 4.08866e-14 diag: 10.9993 err: 3.71719e-15
+complex test : 2.63364e-11 diag: 10.9993 err: 2.39437e-12
+fdafas
+
+n:   12
+prodNew:  0.000867
+prod:     0.03391
+speedUp:  39.1119
+
+complex test : 0 diag: 59136 err: 0
+
+n:   12
+Realexpm_pad:    0.893473
+expokit_pad:     0.004474
+expm_eig:        0.0089
+speedUpEig:      100.39
+speedUpExpokit:  199.703
+Expokit/Eig:     1.98927
+Complexexpm_pad: 0.963227
+expokit_pad:     0.016695
+expm_eig:        0.017143
+speedUpEig:      56.1878
+speedUpExpokit:  57.6955
+Expokit/Eig:     3.83169
+real test : 2.65022e-14 diag: 11.9991 err: 2.20868e-15
+real test : 2.65022e-14 diag: 11.9991 err: 2.20868e-15
+complex test : 2.5386e-14 diag: 11.9991 err: 2.11565e-15
+complex test : 3.72437e-11 diag: 11.9991 err: 3.10387e-12
+fdafas
+
+n:   13
+prodNew:  0.000858
+prod:     0.031875
+speedUp:  37.1503
+
+complex test : 0 diag: 88556 err: 0
+
+n:   13
+Realexpm_pad:    1.11151
+expokit_pad:     0.008116
+expm_eig:        0.009866
+speedUpEig:      112.661
+speedUpExpokit:  136.953
+Expokit/Eig:     1.21562
+Complexexpm_pad: 1.19455
+expokit_pad:     0.0208
+expm_eig:        0.023525
+speedUpEig:      50.778
+speedUpExpokit:  57.4304
+Expokit/Eig:     2.8986
+real test : 7.74568e-14 diag: 12.9989 err: 5.95872e-15
+real test : 7.74575e-14 diag: 12.9989 err: 5.95877e-15
+complex test : 5.57094e-14 diag: 12.9989 err: 4.2857e-15
+complex test : 5.12322e-11 diag: 12.9989 err: 3.94127e-12
+fdafas
+
+n:   14
+prodNew:  0.000856
+prod:     0.037038
+speedUp:  43.2687
+
+complex test : 0 diag: 128674 err: 0
+
+n:   14
+Realexpm_pad:    1.35061
+expokit_pad:     0.00768
+expm_eig:        0.012494
+speedUpEig:      108.1
+speedUpExpokit:  175.86
+Expokit/Eig:     1.62682
+Complexexpm_pad: 1.61083
+expokit_pad:     0.031702
+expm_eig:        0.025922
+speedUpEig:      62.1415
+speedUpExpokit:  50.8117
+Expokit/Eig:     3.37526
+real test : 5.12765e-14 diag: 13.9986 err: 3.66297e-15
+real test : 5.12761e-14 diag: 13.9986 err: 3.66294e-15
+complex test : 8.07745e-14 diag: 13.9986 err: 5.77018e-15
+complex test : 6.88364e-11 diag: 13.9986 err: 4.91737e-12
+fdafas
+
+n:   15
+prodNew:  0.001
+prod:     0.046846
+speedUp:  46.846
+
+complex test : 0 diag: 182175 err: 0

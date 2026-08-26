@@ -1,0 +1,9 @@
+
+*** These modified files were found in JOE when it aborted on Thu Aug  4 14:23:50 2022
+*** JOE was aborted by UNIX signal 1
+
+*** File '* Startup Log *'
+Processing '/usr/local/Cellar/joe/4.6/etc/joe/jmacsrc'...
+Processing '/usr/local/Cellar/joe/4.6/etc/joe/ftyperc'...
+Finished processing /usr/local/Cellar/joe/4.6/etc/joe/ftyperc
+Finished processing /usr/local/Cellar/joe/4.6/etc/joe/jmacsrc

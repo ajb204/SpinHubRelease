@@ -1,0 +1,46 @@
+spinUnidec v10 - 2D FIT / FUDA-style output changes
+===================================================
+
+Implemented for 2D mode only.
+
+1. FitRad now controls the ROI threshold factor.
+   Previous hard-coded behaviour:
+       target = (noiseVal / 5.0) / maxInt
+   New behaviour:
+       target = (noiseVal / FitRad) / maxInt
+   Non-positive FitRad falls back to 5.0 with a warning.
+
+2. FIT creates a "fit" directory beside the input spectrum if needed.
+   Example:
+       /path/spec.ft2 -> /path/fit/
+
+3. Per-peak FUDA-style files are written:
+       fit/<peakName>.dat
+       fit/<peakName>.out
+
+   .dat columns are F2(ppm), F1(ppm), Data, Calc and contain the actual
+   spinUnidec elliptical fitting ROI. Overlap-group files contain the total
+   fitted group surface.
+
+   .out contains FUDA-style f01/w1/g1/f02/w2/g2/Intensity rows. ESD values
+   are NaN as requested. spinUnidec has separate Gaussian and Lorentzian
+   FWHM values; for the FUDA-style single width field, the reported width is
+   the linear mixture (1-g)*GaussianFWHM + g*LorentzianFWHM. The calculated
+   .dat surface still uses the exact spinUnidec shape parameters.
+
+4. Unrestricted DECON+FIT names per-peak files with the same sequential
+   numbering used by slice2D::correlate() / the generated 2D peak list.
+
+5. RECON+FIT fits the supplied reference peak list directly after the
+   restrained DoRun path. Reference peak names are retained for filenames.
+   This avoids rediscovering/thresholding the restrained peaks before FIT.
+
+6. Existing aggregate debug outputs fitted_params.out and fitted.out are
+   retained for compatibility/testing.
+
+Build verification
+------------------
+The two modified translation units were compiled successfully with C++11.
+A complete `make` in this Linux container is blocked by pre-existing header
+include issues in unrelated slice1DUSTA.cpp (missing standard includes such
+as <cstring>/<cmath>/<algorithm> in the supplied source/build environment).

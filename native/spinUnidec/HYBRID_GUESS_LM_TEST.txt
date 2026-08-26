@@ -1,0 +1,25 @@
+2D FIT experimental hybrid optimiser
+====================================
+
+This build tests a two-stage fitting strategy:
+
+1. Run the historical restrained guess-and-check optimiser to completion.
+2. Use that fitted solution (including line shapes and least-squares amplitudes)
+   as the starting point for the continuous LM optimiser.
+3. During LM, each peak centre is restricted to +/- half of the extraction
+   radius around its position at the end of stage 1.
+4. Existing constraints remain in force: positive Gaussian/Lorentzian widths
+   and 0 <= voigt <= 1.
+5. LM is accepted only if its finite SSE improves on the guess-and-check SSE
+   by more than a tiny numerical tolerance. Otherwise the stage-1 result is
+   retained unchanged.
+6. A diagnostic line is printed for every fit group, e.g.:
+     FIT group 14: Guess SSE=... LM SSE=... LM accepted
+   or
+     FIT group 39: Guess SSE=... LM SSE=... LM rejected
+
+No changes were made to the peak model, ROI construction, FitRad/FitF1/FitF2
+selection logic, or FUDA-style output format.
+
+The earlier LM-test correction that includes cross-peak terms in J^T J for
+overlap groups is retained.

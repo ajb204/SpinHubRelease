@@ -1,0 +1,22 @@
+
+
+#g++ -c dgeev_test.c -O3  -DMAC_OS  -DHAVE_LAPACK_CONFIG_H -DLAPACK_COMPLEX_CPP -Wno-return-type-c-linkage -I../../include -I/usr/local/opt/lapack/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX10.15.sdk/System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/Headers && g++ dgeev_test.o -L/usr/local/opt/lapack/lib  -L/usr/local/gfortran/lib -llapacke  -lgfortran -L/System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A -lLAPACK -lm
+
+
+#timings show that linking to lapack slightly beats linking to accelerate
+#the eigen expm is almost an order of magnitude faster than the pade with no apparent loss in accuracy.
+
+#make .o library.
+#note: using lapack.h, having trouble with clapack in accelerate
+clang++ -c dgeev_test.c -O3  -DMAC_OS  -DHAVE_LAPACK_CONFIG_H -DLAPACK_COMPLEX_CPP -Wno-return-type-c-linkage -Wno-c++11-compat-deprecated-writable-strings -I../../include -I/usr/local/opt/lapack/include
+
+##link to lapack libraries
+clang++ dgeev_test.o -L/usr/local/opt/lapack/lib -llapack  -lm
+
+##link to accelerate libraries
+#clang++ dgeev_test.o -framework Accelerate -llapack  -lm
+
+
+
+
+

@@ -1,0 +1,50 @@
+typedef struct {
+	int      size;
+	int      blksize;
+	int      nblks;
+	int	 offblk;
+	int	 blkmask;
+	int	 offpt;
+	float	 sf;
+	float	 sw;
+	float	 refpt;
+	float	 ref;
+	int	 refunits;
+	float	 foldup;
+	float	 folddown;
+	char	 label[16];
+        int	spare1;
+        int	spare2;
+        int	spare3;
+        int	spare4;
+        int	spare5;
+        int	spare6;
+        int	spare7;
+        int	spare8;
+        int	spare9;
+        int	spare10;
+        int	spare11;
+        int	spare12;
+        int	spare13;
+        int	spare14;
+        int	spare15;
+} DIMHEADER;
+
+typedef struct {
+        int	 magic;
+	int      spare1;
+	int      spare2;
+        int      fheadersz;
+        int      bheadersz;
+	int      blkelems;
+	int      ndim;
+        float    temperature;
+	char	sequence[32];
+	char    comment[160];
+        int	month;
+	int	day;
+	int 	year;
+        int     spare[197];
+	DIMHEADER dim[8];
+}FILEHEADER; 
+

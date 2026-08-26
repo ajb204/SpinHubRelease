@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# Permanent spinDecon launcher. Always use the Python environment belonging to
+# this spinHub checkout, regardless of PATH, an activated venv, Conda, etc.
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+PYTHON="$ROOT/.venv/bin/python"
+APP="$ROOT/applications/spinDecon/spinDecon"
+
+if [ ! -x "$PYTHON" ]; then
+    echo "spinDecon: project Python environment is missing: $PYTHON" >&2
+    echo "spinDecon: run 'make setup' from $ROOT" >&2
+    exit 1
+fi
+
+exec "$PYTHON" "$APP" "$@"

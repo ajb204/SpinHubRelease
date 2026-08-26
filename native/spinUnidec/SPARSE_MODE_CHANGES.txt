@@ -1,0 +1,25 @@
+Sparse convolution changes
+==========================
+
+Implemented sparse-spectrum convolution in slice1D, slice2D, and slice4D,
+following the existing slice3D sparse approach.
+
+- SPARSE defaults to true in 1D, 2D, 3D, and 4D.
+- 1D/2D/4D now precompute reusable wrapped 1D peak-shape tables.
+- 1D/2D/4D now build sparse source lists from nonzero DB entries and evaluate
+  the cyclic convolution directly at the sparse support locations.
+- The existing FFT-based path remains available when SPARSE is set to false.
+- 1D baseline convolution remains unchanged and is still added to DS.
+
+Validation performed in this environment:
+- Modified slice1D.cpp, slice2D.cpp, and slice4D.cpp compile successfully in
+  float and corresponding DOUBLE* precision modes when standard headers are
+  supplied explicitly.
+- The direct cyclic sparse convolution was numerically compared with a DFT
+  convolution on small test cases; maximum error was approximately 2.2e-15.
+
+Build note:
+The supplied Makefile does not build cleanly in this container because the
+archive lacks the ../libs FFTW development libraries and the repository's
+headers rely on transitive standard-library includes. Those pre-existing
+repository issues are not part of these sparse-mode changes.

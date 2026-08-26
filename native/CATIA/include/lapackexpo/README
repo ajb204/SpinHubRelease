@@ -1,0 +1,6 @@
+Stripped down expokit
+Designed to use the outstanding fortran matrix
+exponential libraries.
+A.Baldwin 21th Sept 2020
+Fortran compilation and library formation
+handled by catia make file

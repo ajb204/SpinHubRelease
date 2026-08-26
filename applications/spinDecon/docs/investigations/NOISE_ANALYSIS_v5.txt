@@ -1,0 +1,12 @@
+Noise analysis changes - c63 v5
+================================
+
+- Noise histogram Y-axis lower limit fixed at 1e-1.
+- Added a compact lower-left plot summary showing:
+    Noise: fitted Gaussian noise sigma in %.2e notation
+    Max S/N: maximum sampled positive signal-to-noise ratio
+    Spectral points: 100 - central Gaussian fit population (%)
+- "Spectral points" is intended only as a rough spectral occupancy / signal
+  indicator. It can also include baseline, phase, processing, or other
+  non-Gaussian deviations; the Detail window retains the fuller statistics.
+- Existing Detail button and detailed statistics window are unchanged.

@@ -1,0 +1,11 @@
+test calculations for matrix exponentials
+and matrix products using lapack libraries.
+
+the expokit lib for pade expm is much faster
+than the c++ implementation. an eigenvalue
+implementation combined with a list of pars
+that is 10 or greater is the fastest.
+
+for matrix products, there is a gain of about
+30 from using dgemm directly from BLAS versus
+rather than doing it via the uBLAS wrapper.
