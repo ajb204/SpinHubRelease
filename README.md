@@ -116,6 +116,10 @@ Generated environments, native build products, application bundles and DMGs are 
 
 ## Credits
 
+spinDecon is part of the spinHub project, a community effort to make NMR an easier technique to bring into your molecular characterisation workflows. Please contact **Andrew Baldwin at Oxford University** for more information.
+
+We are very grateful to a large number of contributors and testers who helped us get this project to this point including (but not limtied to!) Charlie Buchanan, Gogulan Karunanithy, James Eaton, Eugene Lin, Suzanne Lim, Abi Turner and Gary Thompson.
+
 FUDA and CATIA are from **Flemming Hansen at UCL**.
 
 spinDecon also uses third-party open-source software including FFTW and libLBFGS. See [`LICENSES/`](LICENSES/) for their license terms and the vendored source trees for upstream notices.
